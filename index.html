@@ -1422,10 +1422,14 @@
     fileInput.click();
   });
 
-  /* Nothing is ever sent anywhere, so one person's wheel cannot reach another
-     — but two people sharing a browser profile share the storage behind it.
-     This is the way out of that: erase everything this page has stored. */
-  confirmButton(document.getElementById("btn-wipe"), "Erase everything?", function () {
+  /* Only shown on the hosted copy. Nothing is ever sent anywhere, so one
+     person's wheel cannot reach another — but a hosted page is the one
+     strangers pass through, and two of them sharing a browser share the storage
+     behind it. A file someone downloaded is their own, so it does not need
+     this. */
+  var wipeBtn = document.getElementById("btn-wipe");
+  if (location.protocol === "file:") wipeBtn.hidden = true;
+  confirmButton(wipeBtn, "Erase everything?", function () {
     try {
       [STORE, SNAPS, ACTIONS, WHO, STORE + ":theme"].forEach(function (k) {
         localStorage.removeItem(k);
