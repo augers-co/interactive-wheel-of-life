@@ -672,10 +672,6 @@
       year: "numeric", month: "short", day: "numeric"
     });
   }
-  function avgOf(list) {
-    if (!list.length) return 0;
-    return Math.round(list.reduce(function (s, d) { return s + d.value; }, 0) / list.length);
-  }
 
   /* ---------- theme ---------- */
 
@@ -1326,8 +1322,7 @@
       when.textContent = fmtDate(s.at);
       var meta = document.createElement("span");
       meta.className = "meta";
-      meta.textContent = s.items.length + (s.items.length === 1 ? " area · avg " : " areas · avg ") +
-        toScale(avgOf(s.items));
+      meta.textContent = s.items.length + (s.items.length === 1 ? " area" : " areas");
       when.appendChild(meta);
 
       var cmp = document.createElement("button");
