@@ -433,7 +433,7 @@
         <span class="file-actions">
           <button id="btn-open" class="linkbtn" type="button">Import file</button>
           <button id="btn-save" class="linkbtn" type="button">Export file</button>
-          <button id="btn-wipe" class="linkbtn" type="button">Clear this device</button>
+          <button id="btn-wipe" class="linkbtn" type="button">Delete all &amp; reset</button>
         </span>
       </div>
       <div id="snaps"></div>
@@ -966,6 +966,22 @@
 
   function confirmButton(btn, prompt, action) {
     btn.setAttribute("data-label", btn.textContent);
+
+    /* The armed label is longer than the resting one, so without this the
+       button grows and shoves everything beside it along. Reserve the wider of
+       the two states up front and the row never moves. Measured with the armed
+       class on, since that state is bolder. */
+    var restingW = btn.getBoundingClientRect().width;
+    btn.textContent = prompt;
+    btn.classList.add("armed");
+    var armedW = btn.getBoundingClientRect().width;
+    btn.classList.remove("armed");
+    btn.textContent = btn.getAttribute("data-label");
+    if (restingW && armedW) {
+      /* fractional, not rounded — rounding up shifts neighbours by a pixel */
+      btn.style.minWidth = Math.max(restingW, armedW).toFixed(2) + "px";
+    }
+
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
       if (armedBtn === btn) { disarm(); action(); return; }
@@ -1338,7 +1354,7 @@
       restore.type = "button";
       restore.className = "linkbtn";
       restore.textContent = "Restore";
-      confirmButton(restore, "Overwrite?", function () {
+      function restoreSnap() {
         items = s.items.map(function (d) {
           return { name: d.name, value: clamp(d.value), note: d.note || "", hue: d.hue,
                    color: normHex(d.color) };
@@ -1346,23 +1362,26 @@
         actions = normaliseActions(s.actions);
         compareId = null; openNotes = {}; activeIndex = -1;
         save(); saveActions(); renderAll();
-      });
+      }
 
       var del = document.createElement("button");
       del.type = "button";
       del.className = "linkbtn";
       del.textContent = "Delete";
-      confirmButton(del, "Delete?", function () {
+      function deleteSnap() {
         snaps = snaps.filter(function (x) { return x.id !== s.id; });
         if (compareId === s.id) compareId = null;
         saveSnaps(); renderAll();
-      });
+      }
 
       el2.appendChild(when);
       el2.appendChild(cmp);
       el2.appendChild(restore);
       el2.appendChild(del);
       list.appendChild(el2);
+      /* wired after insertion — confirmButton measures, so it needs layout */
+      confirmButton(restore, "Overwrite?", restoreSnap);
+      confirmButton(del, "Delete?", deleteSnap);
     });
 
     var bar = document.getElementById("cmp-bar");
@@ -1418,18 +1437,14 @@
   });
 
   var fileInput = document.getElementById("file-import");
-  confirmButton(document.getElementById("btn-open"), "Replace current?", function () {
+  confirmButton(document.getElementById("btn-open"), "Replace?", function () {
     fileInput.click();
   });
 
-  /* Only shown on the hosted copy. Nothing is ever sent anywhere, so one
-     person's wheel cannot reach another — but a hosted page is the one
-     strangers pass through, and two of them sharing a browser share the storage
-     behind it. A file someone downloaded is their own, so it does not need
-     this. */
-  var wipeBtn = document.getElementById("btn-wipe");
-  if (location.protocol === "file:") wipeBtn.hidden = true;
-  confirmButton(wipeBtn, "Erase everything?", function () {
+  /* Nothing is ever sent anywhere, so one person's wheel cannot reach another
+     — but everything is kept in the browser, and it survives reloads and the
+     next person to sit down at that browser. This is how you get rid of it. */
+  confirmButton(document.getElementById("btn-wipe"), "Delete everything?", function () {
     try {
       [STORE, SNAPS, ACTIONS, WHO, STORE + ":theme"].forEach(function (k) {
         localStorage.removeItem(k);
@@ -1489,7 +1504,7 @@
     drawRows();
   });
 
-  confirmButton(document.getElementById("btn-reset"), "Reset everything?", function () {
+  confirmButton(document.getElementById("btn-reset"), "Reset wheel?", function () {
     items = freshDefaults();
     actions = blankActions();
     openNotes = {};

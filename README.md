@@ -86,7 +86,7 @@ on the device you're using. That means:
 
 - Your wheel does not follow you to another browser or another computer.
 - Clearing site data, or "clear history" with site data included, erases it.
-- Someone else using your browser profile can see it — **Clear this device**
+- Someone else using your browser profile can see it — **Delete all & reset**
   in the History section erases the lot.
 
 Use **Export file** to write everything to a single JSON file, and **Import
