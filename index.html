@@ -329,7 +329,7 @@
 
   /* Print / save-as-PDF: chrome off, every note expanded, nothing split mid-row */
   @media print {
-    @page { margin: 14mm; }
+    @page { margin: 12mm 14mm; }
     .actions, .add-wrap, .row .iconbtn, .plan-row .iconbtn, .footnote,
     .history, .cmp-bar .linkbtn, .plan-head-hint, .panel-head .linkbtn,
     .sub, .howto-line, .who { display: none !important; }
@@ -337,8 +337,9 @@
     body { background: #fff; }
     .page { max-width: none; padding: 0; }
     .layout { gap: 18px; }
-    .card { border-color: #ddd; padding: 0; }
-    #wheel { max-width: 520px; }
+    .card { border: none; background: none; padding: 0; }
+    /* page one is the wheel alone — let it use the full measure */
+    #wheel { max-width: none; width: 100%; }
     .panel { break-before: auto; }
     /* WebKit routinely ignores break-inside on flex and grid children, which
        split rows mid-line. Blockifying the containers for print gives its
@@ -432,6 +433,7 @@
         <span class="file-actions">
           <button id="btn-open" class="linkbtn" type="button">Import file</button>
           <button id="btn-save" class="linkbtn" type="button">Export file</button>
+          <button id="btn-wipe" class="linkbtn" type="button">Clear this device</button>
         </span>
       </div>
       <div id="snaps"></div>
@@ -469,6 +471,24 @@
   var STORE = "wheel-of-life-v1";
   var MIN_FIELDS = 3, MAX_FIELDS = 20;
   var HUE_START = 250;
+  /* Default hues skip the yellow-to-olive band. At the lightness the defaults
+     use, hues in here come out muddy, and a chosen yellow reads better when it
+     is not competing with a default one. Customising is unrestricted. */
+  var HUE_SKIP_FROM = 48, HUE_SKIP_TO = 128;   /* measured: gold at this lightness */
+  var HUE_SPAN = 360 - (HUE_SKIP_TO - HUE_SKIP_FROM);
+
+  /* Hues live on a line HUE_SPAN long that simply does not contain the gold
+     band, so spacing and gap-filling can be plain arithmetic. */
+  function hueToU(h) {
+    var u = ((((h - HUE_SKIP_TO) % 360) + 360) % 360);
+    return u < HUE_SPAN ? u : null;
+  }
+  function uToHue(u) {
+    return (HUE_SKIP_TO + (((u % HUE_SPAN) + HUE_SPAN) % HUE_SPAN)) % 360;
+  }
+  function defaultHue(i, n) {
+    return uToHue((HUE_START - HUE_SKIP_TO) + i * (HUE_SPAN / n));
+  }
 
   function freshDefaults() {
     return DEFAULTS.map(function (n, i) {
@@ -476,7 +496,7 @@
         name: n,
         value: 50,
         note: "",
-        hue: (HUE_START + i * (360 / DEFAULTS.length)) % 360,
+        hue: defaultHue(i, DEFAULTS.length),
         color: ""
       };
     });
@@ -508,7 +528,7 @@
           value: clamp(Math.round(+d.value || 0)),
           note: typeof d.note === "string" ? d.note : "",
           /* older saves predate stored hues — space them out on the way in */
-          hue: isFinite(d.hue) ? ((+d.hue % 360) + 360) % 360 : (HUE_START + i * (360 / n)) % 360,
+          hue: isFinite(d.hue) ? ((+d.hue % 360) + 360) % 360 : defaultHue(i, n),
           color: normHex(d.color)
         };
       });
@@ -518,17 +538,19 @@
   /* A new area takes the widest unused arc of the colour wheel, so adding or
      removing one never repaints the areas already on the chart. */
   function nextHue() {
-    var hs = items.map(function (d) { return d.hue; }).sort(function (a, b) { return a - b; });
-    if (!hs.length) return HUE_START;
-    if (hs.length === 1) return (hs[0] + 180) % 360;
-    var best = HUE_START, bestGap = -1;
-    for (var i = 0; i < hs.length; i++) {
-      var a = hs[i];
-      var b = (i + 1 < hs.length) ? hs[i + 1] : hs[0] + 360;
+    var us = items.map(function (d) { return hueToU(d.hue); })
+                  .filter(function (u) { return u !== null; })
+                  .sort(function (a, b) { return a - b; });
+    if (!us.length) return HUE_START;
+    if (us.length === 1) return uToHue(us[0] + HUE_SPAN / 2);
+    var best = us[0], bestGap = -1;
+    for (var i = 0; i < us.length; i++) {
+      var a = us[i];
+      var b = (i + 1 < us.length) ? us[i + 1] : us[0] + HUE_SPAN;
       var gap = b - a;
-      if (gap > bestGap) { bestGap = gap; best = (a + gap / 2) % 360; }
+      if (gap > bestGap) { bestGap = gap; best = a + gap / 2; }
     }
-    return best;
+    return uToHue(best);
   }
   function save() {
     try { localStorage.setItem(STORE, JSON.stringify(items)); } catch (e) {}
@@ -729,40 +751,12 @@
   /* A chosen colour is rendered exactly as chosen. Forcing its lightness into a
      band instead was wrong: yellow sits at L 0.97 naturally, so pulling it down
      to 0.78 pushed it out of sRGB and the gamut fallback desaturated it into
-     gold. Legibility is handled by edgeFor() below rather than by altering the
-     colour. */
+     gold. A very pale pick will sit faintly against the page, which is the
+     honest consequence of choosing it. */
   function colorFor(item) {
     var t = theme();
     var picked = normHex(item.color);
     return picked ? picked : oklchToHex(t.L, t.C, item.hue);
-  }
-
-  function luminance(hex) {
-    var n = parseInt(hex.slice(1), 16);
-    function ch(c) {
-      c = c / 255;
-      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-    }
-    return 0.2126 * ch((n >> 16) & 255) + 0.7152 * ch((n >> 8) & 255) +
-           0.0722 * ch(n & 255);
-  }
-  function contrastRatio(a, b) {
-    var x = luminance(a), y = luminance(b);
-    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
-  }
-
-  /* Pure yellow against an off-white page is about 1.05:1 — the slice is there
-     but its edge is not. Rather than change the colour, outline it in a deeper
-     shade of itself. Every default colour clears the threshold, so this only
-     shows up on a pale pick in light mode or a dark one in dark mode. */
-  function edgeFor(item) {
-    var fill = colorFor(item);
-    var t = theme();
-    if (contrastRatio(fill, t.surface) >= 1.6) return "";
-    var c = hexToOklch(fill);
-    var L = mode() === "dark" ? Math.min(0.92, c.L + 0.34)
-                              : Math.max(0.34, c.L - 0.34);
-    return oklchToHex(L, c.C, c.h);
   }
 
   function anyCustomColour() {
@@ -770,8 +764,11 @@
   }
 
   /* Light unless the reader has explicitly chosen dark — the system setting
-     is deliberately not followed, so the page looks the same for everyone. */
+     is deliberately not followed, so the page looks the same for everyone.
+     The PDF is always on white paper, so it forces light regardless. */
+  var pdfMode = false;
   function mode() {
+    if (pdfMode) return "light";
     return document.documentElement.getAttribute("data-theme") === "dark"
       ? "dark" : "light";
   }
@@ -856,12 +853,9 @@
     for (var j = 0; j < n; j++) {
       var b0 = j * step + pad / 2, b1 = (j + 1) * step - pad / 2;
       var r = R_IN + (R_OUT - R_IN) * (items[j].value / 100);
-      var edge = edgeFor(items[j]);
       var path = el("path", {
         d: sector(b0, b1, R_IN, r),
         fill: colorFor(items[j]),
-        stroke: edge || null,
-        "stroke-width": edge ? 1.25 : null,
         class: "wedge",
         "data-i": j
       });
@@ -1432,6 +1426,18 @@
   confirmButton(document.getElementById("btn-open"), "Replace current?", function () {
     fileInput.click();
   });
+
+  /* Nothing is ever sent anywhere, so one person's wheel cannot reach another
+     — but two people sharing a browser profile share the storage behind it.
+     This is the way out of that: erase everything this page has stored. */
+  confirmButton(document.getElementById("btn-wipe"), "Erase everything?", function () {
+    try {
+      [STORE, SNAPS, ACTIONS, WHO, STORE + ":theme"].forEach(function (k) {
+        localStorage.removeItem(k);
+      });
+    } catch (e) {}
+    location.reload();
+  });
   fileInput.addEventListener("change", function () {
     var f = fileInput.files && fileInput.files[0];
     if (!f) return;
@@ -1450,7 +1456,7 @@
           note: typeof d.note === "string" ? d.note : "",
           color: normHex(d.color),
           hue: isFinite(d.hue) ? ((+d.hue % 360) + 360) % 360
-                               : (HUE_START + i * (360 / data.current.length)) % 360
+                               : defaultHue(i, data.current.length)
         };
       });
       snaps = Array.isArray(data.snapshots) ? data.snapshots : [];
@@ -1494,7 +1500,19 @@
     save(); saveActions(); renderAll();
   });
 
-  document.getElementById("btn-pdf").addEventListener("click", function () { window.print(); });
+  document.getElementById("btn-pdf").addEventListener("click", function () {
+    var blob;
+    try { blob = buildPdf(); }
+    catch (e) {
+      alert("Could not build the PDF. Use your browser's Print command instead.");
+      return;
+    }
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = exportName("pdf");
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
 
   var whoInput = document.getElementById("who");
   whoInput.value = who;
@@ -1573,6 +1591,287 @@
       document.documentElement.setAttribute("data-theme", savedTheme);
     }
   } catch (e) {}
+
+
+  /* ---------- PDF generation ----------
+
+     Printing the page through the browser proved unreliable: Firefox scales the
+     whole document to fit the paper (shrinking everything to about half size),
+     and every engine stamps its own header and footer on top. This writes the
+     PDF directly instead — same output everywhere, no chrome, no scaling.
+
+     Helvetica is one of the 14 fonts every PDF reader ships, so nothing needs
+     embedding and the file stays small. Text is encoded as WinAnsi, which
+     covers Latin-1 plus the usual curly quotes and dashes; anything outside
+     that (emoji, non-Latin scripts) becomes "?".                             */
+
+  var PDF_W = 612, PDF_H = 792, PDF_M = 54;
+
+  var HELV_W = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,
+    556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,
+    667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,
+    611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,
+    278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,
+    500,500,500,334,260,334,584];
+  var HELV_B_W = [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,
+    278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,
+    722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,
+    667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,
+    556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,
+    778,556,556,500,389,280,389,584];
+
+  var WINANSI = { 0x2018:0x91, 0x2019:0x92, 0x201C:0x93, 0x201D:0x94,
+    0x2013:0x96, 0x2014:0x97, 0x2026:0x85, 0x2022:0x95, 0x20AC:0x80,
+    0x2122:0x99, 0x2039:0x8B, 0x203A:0x9B, 0x2044:0x2F, 0x00A0:0x20 };
+  var HIGH_W = { 0x91:222, 0x92:222, 0x93:333, 0x94:333, 0x96:556, 0x97:1000,
+    0x85:1000, 0x95:350, 0x80:556, 0x99:1000, 0x8B:333, 0x9B:333 };
+
+  /* Unicode in, WinAnsi bytes out. */
+  function winansi(text) {
+    var out = "";
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charCodeAt(i);
+      if (c === 9) { out += " "; continue; }
+      if (c >= 0x20 && c <= 0x7e) { out += text[i]; continue; }
+      if (WINANSI[c] !== undefined) { out += String.fromCharCode(WINANSI[c]); continue; }
+      if (c >= 0xa0 && c <= 0xff) { out += text[i]; continue; }
+      out += "?";
+    }
+    return out;
+  }
+
+  function charWidth(code, bold) {
+    if (code >= 32 && code <= 126) return (bold ? HELV_B_W : HELV_W)[code - 32];
+    if (HIGH_W[code] !== undefined) return HIGH_W[code];
+    if (code >= 0xa0) return bold ? 611 : 556;   /* accented letters, close enough */
+    return bold ? 611 : 556;
+  }
+
+  function textWidth(text, size, bold) {
+    var s = winansi(text), total = 0;
+    for (var i = 0; i < s.length; i++) total += charWidth(s.charCodeAt(i), bold);
+    return total * size / 1000;
+  }
+
+  function wrapPdf(text, size, bold, maxW) {
+    var out = [];
+    String(text).split(/\n/).forEach(function (para) {
+      var words = para.split(/\s+/).filter(Boolean);
+      if (!words.length) { return; }
+      var line = "";
+      words.forEach(function (w) {
+        var next = line ? line + " " + w : w;
+        if (textWidth(next, size, bold) > maxW && line) { out.push(line); line = w; }
+        else { line = next; }
+      });
+      if (line) out.push(line);
+    });
+    return out.length ? out : [""];
+  }
+
+  function pdfEsc(text) {
+    return winansi(text).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  }
+
+  function rgbOf(hex) {
+    var n = parseInt(normHex(hex).slice(1) || "000000", 16);
+    return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+  }
+  function fillCol(hex) {
+    var c = rgbOf(hex);
+    return c[0].toFixed(3) + " " + c[1].toFixed(3) + " " + c[2].toFixed(3) + " rg\n";
+  }
+  function strokeCol(hex) {
+    var c = rgbOf(hex);
+    return c[0].toFixed(3) + " " + c[1].toFixed(3) + " " + c[2].toFixed(3) + " RG\n";
+  }
+
+  function buildPdf() {
+    pdfMode = true;
+    try { return buildPdfInner(); } finally { pdfMode = false; }
+  }
+
+  function buildPdfInner() {
+    var pages = [], ops = [], y = PDF_M;
+    var INK = "#111111", SOFT = "#555555", MUTED = "#8a8a8a", RULE = "#e2e2de";
+
+    function flip(v) { return (PDF_H - v).toFixed(2); }
+    function newPage() { pages.push(ops.join("")); ops = []; y = PDF_M; }
+    function room(need) { if (y + need > PDF_H - PDF_M) newPage(); }
+
+    function text(str, x, size, opts) {
+      opts = opts || {};
+      var bold = !!opts.bold, str2 = pdfEsc(str);
+      var tx = x;
+      if (opts.align === "right") tx = x - textWidth(str, size, bold);
+      else if (opts.align === "center") tx = x - textWidth(str, size, bold) / 2;
+      ops.push(fillCol(opts.color || INK));
+      ops.push("BT /" + (bold ? "F2" : "F1") + " " + size + " Tf " +
+               tx.toFixed(2) + " " + flip(y + size * 0.82) + " Td (" + str2 + ") Tj ET\n");
+    }
+
+    function rule(x1, x2) {
+      ops.push(strokeCol(RULE) + "0.6 w " + x1.toFixed(2) + " " + flip(y) +
+               " m " + x2.toFixed(2) + " " + flip(y) + " l S\n");
+    }
+
+    function dot(cx, cy, r, hex) {
+      var k = 0.5523 * r;
+      ops.push(fillCol(hex));
+      ops.push(cx.toFixed(2) + " " + flip(cy - r) + " m " +
+        (cx + k).toFixed(2) + " " + flip(cy - r) + " " + (cx + r).toFixed(2) + " " + flip(cy - k) + " " + (cx + r).toFixed(2) + " " + flip(cy) + " c " +
+        (cx + r).toFixed(2) + " " + flip(cy + k) + " " + (cx + k).toFixed(2) + " " + flip(cy + r) + " " + cx.toFixed(2) + " " + flip(cy + r) + " c " +
+        (cx - k).toFixed(2) + " " + flip(cy + r) + " " + (cx - r).toFixed(2) + " " + flip(cy + k) + " " + (cx - r).toFixed(2) + " " + flip(cy) + " c " +
+        (cx - r).toFixed(2) + " " + flip(cy - k) + " " + (cx - k).toFixed(2) + " " + flip(cy - r) + " " + cx.toFixed(2) + " " + flip(cy - r) + " c f\n");
+    }
+
+    /* a pie wedge, built from 90-degree bezier arc segments */
+    function wedge(cx, cy, r, a0, a1, fill, stroke) {
+      if (r <= 0.3) return;
+      var segs = Math.max(1, Math.ceil((a1 - a0) / 90));
+      var step = (a1 - a0) / segs;
+      var d = cx.toFixed(2) + " " + flip(cy) + " m ";
+      function P(deg) {
+        var rad = (deg - 90) * Math.PI / 180;
+        return [cx + r * Math.cos(rad), cy + r * Math.sin(rad), rad];
+      }
+      var p = P(a0);
+      d += p[0].toFixed(2) + " " + flip(p[1]) + " l ";
+      for (var i = 0; i < segs; i++) {
+        var s0 = P(a0 + step * i), s1 = P(a0 + step * (i + 1));
+        var k = 4 / 3 * Math.tan((step * Math.PI / 180) / 4) * r;
+        var c1x = s0[0] - k * Math.sin(s0[2]), c1y = s0[1] + k * Math.cos(s0[2]);
+        var c2x = s1[0] + k * Math.sin(s1[2]), c2y = s1[1] - k * Math.cos(s1[2]);
+        d += c1x.toFixed(2) + " " + flip(c1y) + " " + c2x.toFixed(2) + " " + flip(c2y) +
+             " " + s1[0].toFixed(2) + " " + flip(s1[1]) + " c ";
+      }
+      d += "h ";
+      if (stroke) {
+        ops.push(fillCol(fill) + strokeCol(stroke) + "1 w " + d + "B\n");
+      } else {
+        ops.push(fillCol(fill) + d + "f\n");
+      }
+    }
+
+    /* ---- page 1 header ---- */
+    text("Wheel of Life", PDF_M, 22, { bold: true });
+    y += 30;
+    var stamp = (who.trim() ? who.trim() + "  ·  " : "") + longToday();
+    text(stamp, PDF_M, 10.5, { color: MUTED });
+    y += 26;
+
+    /* ---- the wheel ---- */
+    var R = 158, LR = R + 13;
+    var cx = PDF_W / 2, cy = y + R + 26;
+    var n = items.length, step = 360 / n, pad = Math.min(1.4, step / 9);
+
+    for (var i = 0; i < n; i++) {
+      wedge(cx, cy, R, i * step + pad / 2, (i + 1) * step - pad / 2, "#f0efec", null);
+    }
+    for (var j = 0; j < n; j++) {
+      var rr = R * (items[j].value / 100);
+      wedge(cx, cy, rr, j * step + pad / 2, (j + 1) * step - pad / 2,
+            colorFor(items[j]), null);
+    }
+
+    for (var k = 0; k < n; k++) {
+      var mid = k * step + step / 2;
+      var rad = (mid - 90) * Math.PI / 180;
+      var lx = cx + LR * Math.cos(rad), ly = cy + LR * Math.sin(rad);
+      var vx = Math.sin(mid * Math.PI / 180), vy = -Math.cos(mid * Math.PI / 180);
+      var align = Math.abs(vx) < 0.1 ? "center" : (vx > 0 ? "left" : "right");
+      var lines = wrapPdf(items[k].name, 8.5, false, 88);
+      if (lines.length > 3) lines = lines.slice(0, 3);
+      var block = lines.length * 10.5;
+      var ly0 = ly + (vy - 1) / 2 * block;
+      var savedY = y;
+      lines.forEach(function (ln, li) {
+        y = ly0 + li * 10.5;
+        text(ln, align === "right" ? lx : (align === "center" ? lx : lx), 8.5,
+             { align: align === "left" ? "left" : align, color: INK });
+      });
+      y = savedY;
+    }
+    y = cy + R + 34;
+
+    /* ---- areas ---- */
+    room(40);
+    text("AREAS", PDF_M, 8, { bold: true, color: MUTED });
+    y += 16;
+
+    items.forEach(function (item) {
+      var noteLines = item.note && item.note.trim()
+        ? wrapPdf(item.note.trim(), 9.5, false, PDF_W - PDF_M * 2 - 16) : [];
+      room(20 + noteLines.length * 12.5 + 8);
+      dot(PDF_M + 4, y + 5.5, 3.4, colorFor(item));
+      text(item.name, PDF_M + 15, 10.5, { color: INK });
+      text(toScale(item.value), PDF_W - PDF_M, 10.5, { align: "right", color: SOFT });
+      y += 15;
+      noteLines.forEach(function (ln) {
+        text(ln, PDF_M + 15, 9.5, { color: SOFT });
+        y += 12.5;
+      });
+      y += 5;
+      rule(PDF_M, PDF_W - PDF_M);
+      y += 8;
+    });
+
+    /* ---- action plan ---- */
+    var live = actions.filter(function (a) { return a && a.trim(); });
+    if (live.length) {
+      y += 10;
+      room(40);
+      text("ACTION PLAN", PDF_M, 8, { bold: true, color: MUTED });
+      y += 16;
+      live.forEach(function (a, i2) {
+        var lines = wrapPdf(a.trim(), 10.5, false, PDF_W - PDF_M * 2 - 22);
+        room(lines.length * 13.5 + 12);
+        text(String(i2 + 1) + ".", PDF_M + 2, 9.5, { color: MUTED });
+        lines.forEach(function (ln, li) {
+          text(ln, PDF_M + 22, 10.5, { color: INK });
+          y += 13.5;
+        });
+        y += 4;
+        rule(PDF_M + 22, PDF_W - PDF_M);
+        y += 9;
+      });
+    }
+
+    newPage();
+
+    /* ---- assemble the file ---- */
+    var objs = [];
+    objs.push("<< /Type /Catalog /Pages 2 0 R >>");
+    var pageIds = pages.map(function (_, i) { return 3 + i * 2; });
+    objs.push("<< /Type /Pages /Kids [" +
+      pageIds.map(function (id) { return id + " 0 R"; }).join(" ") +
+      "] /Count " + pages.length + " >>");
+    pages.forEach(function (content, i) {
+      objs.push("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + PDF_W + " " + PDF_H +
+        "] /Resources << /Font << /F1 " + (3 + pages.length * 2) + " 0 R /F2 " +
+        (4 + pages.length * 2) + " 0 R >> >> /Contents " + (4 + i * 2) + " 0 R >>");
+      objs.push("<< /Length " + content.length + " >>\nstream\n" + content + "endstream");
+    });
+    objs.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+    objs.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+
+    var out = "%PDF-1.4\n", offsets = [];
+    objs.forEach(function (body, i) {
+      offsets.push(out.length);
+      out += (i + 1) + " 0 obj\n" + body + "\nendobj\n";
+    });
+    var xref = out.length;
+    out += "xref\n0 " + (objs.length + 1) + "\n0000000000 65535 f \n";
+    offsets.forEach(function (o) {
+      out += ("0000000000" + o).slice(-10) + " 00000 n \n";
+    });
+    out += "trailer\n<< /Size " + (objs.length + 1) + " /Root 1 0 R >>\nstartxref\n" +
+           xref + "\n%%EOF";
+
+    var bytes = new Uint8Array(out.length);
+    for (var b = 0; b < out.length; b++) bytes[b] = out.charCodeAt(b) & 0xff;
+    return new Blob([bytes], { type: "application/pdf" });
+  }
 
   renderAll();
 })();

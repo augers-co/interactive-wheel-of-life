@@ -26,10 +26,9 @@ and can show you exactly what moved since last time.
 - **Drag to reorder.** List order is wheel order, so you can put related areas
   next to each other. Keyboard works too — focus a drag handle and use ↑/↓.
 - **Recolour any area** by clicking its dot — a native colour picker, no
-  library. Defaults are generated to be distinct from each other. A chosen
-  colour is rendered exactly; if it is too close to the page to read — pure
-  yellow on white, say — the slice picks up a thin outline in a deeper shade of
-  itself rather than having its colour altered.
+  library. A chosen colour is rendered exactly as picked. Generated defaults are
+  spread around the colour wheel but skip the gold band, which goes muddy at the
+  lightness they use.
 - **Scored 1–10**, the scale the worksheet uses: 1 very dissatisfied, 10 fully
   satisfied. Each slice reaches out in proportion, so a 5 sits half way to the
   edge. The slider moves in tenths, so 7.4 is available if 7 and 8 both feel
@@ -41,10 +40,9 @@ and can show you exactly what moved since last time.
 - **Snapshots.** Save a dated copy of the whole wheel. Later, hit *Compare* and
   the wheel draws a line across each slice showing where it stood then, with a
   ▲/▼ change beside every slider.
-- **Save as PDF** — a clean one-page sheet with your name and the date, the
-  wheel, every score and note, and the action plan. Blank notes and actions are
-  left out and no interface chrome appears. Prints on paper from the same
-  dialog.
+- **Save as PDF** — writes a real PDF directly, no print dialog and no browser
+  headers. Name, date, a full-size wheel, every score and note, and the action
+  plan. Blank notes and actions are left out.
 - **Export file / Import file** — the whole wheel, including snapshots, as a
   single file. Send it to a coach and they can import it and work with your
   wheel live, or reopen it yourself months later.
@@ -71,7 +69,7 @@ Two exports, doing different jobs:
 
 | | What it's for |
 |---|---|
-| **Save as PDF** | Something to read or hand over. Fixed, final, universal. |
+| **Save as PDF** | Something to read or hand over. Generated in-page, so it looks identical everywhere. |
 | **Export file** | Something to carry on with. A coach imports it and sees your live wheel; you reopen it next quarter and compare. |
 
 Neither goes near a server — the PDF is produced by your browser's own print
@@ -88,7 +86,8 @@ on the device you're using. That means:
 
 - Your wheel does not follow you to another browser or another computer.
 - Clearing site data, or "clear history" with site data included, erases it.
-- Someone else using your browser profile can see it.
+- Someone else using your browser profile can see it — **Clear this device**
+  in the History section erases the lot.
 
 Use **Export file** to write everything to a single JSON file, and **Import
 file** to load it back. If you plan to compare wheels months apart, export one —
