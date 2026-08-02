@@ -20,21 +20,6 @@
     --up: #006300;
     --down: #c0392f;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"])) {
-      color-scheme: dark;
-      --surface-1: #1a1a19;
-      --page: #0d0d0d;
-      --text-primary: #ffffff;
-      --text-secondary: #c3c2b7;
-      --muted: #898781;
-      --gridline: #2c2c2a;
-      --border: rgba(255,255,255,0.10);
-      --track: #3a3a37;
-      --thumb: #7d7b75;
-      --hover: rgba(255,255,255,0.06);
-    }
-  }
   :root[data-theme="dark"] {
     color-scheme: dark;
     --surface-1: #1a1a19;
@@ -72,8 +57,9 @@
     margin: 0 0 4px;
   }
   .sub { color: var(--text-secondary); font-size: 13.5px; margin: 0; max-width: 62ch; }
-  .sub .howto { color: var(--muted); margin-left: 4px; }
-  .sub .howto:hover { color: var(--text-primary); }
+  .howto-line { margin: 6px 0 0; font-size: 13px; }
+  .howto-line a { color: var(--muted); }
+  .howto-line a:hover { color: var(--text-primary); }
 
   .actions { display: flex; flex-wrap: wrap; gap: 8px; }
   button {
@@ -125,7 +111,7 @@
   .rows { display: flex; flex-direction: column; }
   .row {
     display: grid;
-    grid-template-columns: 15px 9px minmax(0, 1fr) minmax(62px, 96px) 30px 20px 20px;
+    grid-template-columns: 15px 9px minmax(0, 1fr) minmax(62px, 96px) 38px 20px 20px;
     align-items: center;
     gap: 0 7px;
     padding: 2px 4px;
@@ -164,7 +150,7 @@
 
   .row .value {
     font: inherit; font-size: 12px; font-variant-numeric: tabular-nums;
-    width: 30px; text-align: right; color: var(--muted);
+    width: 38px; text-align: right; color: var(--muted);
     background: transparent; border: 1px solid transparent;
     border-radius: 5px; padding: 3px 2px;
     -moz-appearance: textfield; appearance: textfield;
@@ -242,6 +228,34 @@
   .add-wrap button { font-size: 12px; padding: 6px 10px; }
   .count { font-size: 11.5px; color: var(--muted); }
 
+  /* ---- action plan ---- */
+  .plan { padding-top: 2px; }
+  .plan-head-hint { font-size: 11.5px; color: var(--muted); }
+  .plan-row {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) 20px;
+    align-items: start; gap: 0 8px;
+    padding: 1px 4px;
+  }
+  .plan-row .num {
+    font-size: 12px; color: var(--muted);
+    font-variant-numeric: tabular-nums; padding-top: 9px;
+  }
+  .plan-row .iconbtn { margin-top: 5px; }
+  .action-field {
+    font: inherit; font-size: 13px; line-height: 1.45;
+    width: 100%; padding: 6px 8px; margin: 0;
+    color: var(--text-secondary); background: transparent;
+    border: 1px solid transparent; border-radius: 7px;
+    resize: none; overflow: hidden; min-height: 32px;
+  }
+  .action-field:hover { border-color: var(--border); }
+  .action-field:focus {
+    border-color: var(--border); background: var(--surface-1);
+    outline: none; color: var(--text-primary);
+  }
+  .action-field::placeholder { color: var(--muted); }
+
   /* ---- history ---- */
   .history { margin-top: 26px; }
   .history[hidden] { display: none; }
@@ -265,7 +279,7 @@
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
   .rows.comparing .row {
-    grid-template-columns: 15px 9px minmax(0, 1fr) minmax(62px, 96px) 30px 46px 20px 20px;
+    grid-template-columns: 15px 9px minmax(0, 1fr) minmax(62px, 96px) 38px 46px 20px 20px;
   }
   .rows.comparing .delta { display: block; }
   .delta.up { color: var(--up); }
@@ -283,15 +297,16 @@
   /* Print / save-as-PDF: chrome off, every note expanded, nothing split mid-row */
   @media print {
     @page { margin: 14mm; }
-    .actions, .add-wrap, .row .iconbtn, .footnote,
-    .history, .cmp-bar .linkbtn { display: none !important; }
+    .actions, .add-wrap, .row .iconbtn, .plan-row .iconbtn, .footnote,
+    .history, .cmp-bar .linkbtn, .plan-head-hint { display: none !important; }
     body { background: #fff; }
     .page { max-width: none; padding: 0; }
     .layout { gap: 18px; }
     .card { border-color: #ddd; padding: 0; }
     #wheel { max-width: 520px; }
     .panel { break-before: auto; }
-    .row { break-inside: avoid; page-break-inside: avoid; }
+    .row, .plan-row { break-inside: avoid; page-break-inside: avoid; }
+    .action-field { border-bottom: 1px solid #e5e5e5; border-radius: 0; color: #333; }
     .note-wrap[hidden] { display: block !important; }
     .note-field {
       border-color: #e5e5e5; min-height: 0; resize: none;
@@ -307,7 +322,8 @@
   <header class="top">
     <div class="titles">
       <h1>Wheel of Life</h1>
-      <p class="sub">Rate each area from 0 to 100. <a class="howto" href="instructions.html">How to use this</a></p>
+      <p class="sub">Rate each area from 1 to 10 — 1 is very dissatisfied, 10 is fully satisfied.</p>
+      <p class="howto-line"><a href="instructions.html">How to use this</a></p>
     </div>
     <div class="actions">
       <button id="btn-theme" type="button" title="Switch light / dark">Theme</button>
@@ -342,6 +358,18 @@
       </div>
     </section>
 
+    <section class="plan">
+      <div class="panel-head">
+        <h2>Action plan</h2>
+        <span class="plan-head-hint">Optional</span>
+      </div>
+      <div id="plan-rows"></div>
+      <div class="add-wrap">
+        <button id="btn-add-action" type="button">+ Add action</button>
+        <span class="count" id="action-count"></span>
+      </div>
+    </section>
+
     <section class="history" id="history" hidden>
       <div class="panel-head">
         <h2>History</h2>
@@ -355,7 +383,7 @@
     </section>
   </div>
 
-  <p class="footnote">Scores, notes and snapshots save to this browser's local storage on this device. Nothing is uploaded. Clearing site data would erase them, so use Export backup if you are counting on the history months from now. Printing includes notes; the PNG is the wheel only.</p>
+  <p class="footnote">Scores, notes, actions and snapshots save to this browser's local storage on this device. Nothing is uploaded. Clearing site data would erase them, so use Export backup if you are counting on the history months from now. Printing includes notes and actions; the PNG is the wheel only.</p>
 </div>
 
 <script>
@@ -394,9 +422,12 @@
   }
 
   var SNAPS = STORE + ":snaps";
+  var ACTIONS = STORE + ":actions";
+  var START_ACTIONS = 3, MAX_ACTIONS = 10;
 
   var items = load() || freshDefaults();
   var snaps = loadSnaps();
+  var actions = loadActions();
   var compareId = null;
   var activeIndex = -1;
   var openNotes = {};
@@ -438,7 +469,12 @@
   function save() {
     try { localStorage.setItem(STORE, JSON.stringify(items)); } catch (e) {}
   }
-  function clamp(v) { return Math.max(0, Math.min(100, v)); }
+  /* Scores are held internally as 10–100 so the slider stays fine-grained, but
+     are always shown on the worksheet's 1–10 scale: 1 = very dissatisfied,
+     10 = fully satisfied. Old saves below 10 clamp up on the way in. */
+  function clamp(v) { return Math.max(10, Math.min(100, v)); }
+  function toScale(v) { return (v / 10).toFixed(1); }
+  function fromScale(x) { return clamp(Math.round((+x || 0) * 10)); }
 
   /* ---------- snapshots ---------- */
 
@@ -459,9 +495,35 @@
       at: new Date().toISOString(),
       items: items.map(function (d) {
         return { name: d.name, value: d.value, note: d.note || "", hue: d.hue };
-      })
+      }),
+      actions: actions.slice()
     });
     saveSnaps();
+  }
+
+  /* ---------- action plan ---------- */
+
+  function normaliseActions(list) {
+    return (Array.isArray(list) ? list : []).map(function (x) {
+      return typeof x === "string" ? x : "";
+    }).slice(0, MAX_ACTIONS);
+  }
+  function blankActions() {
+    var a = [];
+    while (a.length < START_ACTIONS) a.push("");
+    return a;
+  }
+  /* Three empty rows on a first visit are a starting point, not a floor — if
+     you delete them all, they stay deleted. */
+  function loadActions() {
+    try {
+      var raw = localStorage.getItem(ACTIONS);
+      if (raw === null) return blankActions();
+      return normaliseActions(JSON.parse(raw));
+    } catch (e) { return blankActions(); }
+  }
+  function saveActions() {
+    try { localStorage.setItem(ACTIONS, JSON.stringify(actions)); } catch (e) {}
   }
 
   function snapById(id) {
@@ -550,10 +612,11 @@
     return oklchToHex(t.L, t.C, item.hue);
   }
 
+  /* Light unless the reader has explicitly chosen dark — the system setting
+     is deliberately not followed, so the page looks the same for everyone. */
   function mode() {
-    var stamp = document.documentElement.getAttribute("data-theme");
-    if (stamp === "dark" || stamp === "light") return stamp;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return document.documentElement.getAttribute("data-theme") === "dark"
+      ? "dark" : "light";
   }
   function theme() { return THEMES[mode()]; }
 
@@ -644,7 +707,7 @@
         "data-i": j
       });
       var tip = el("title");
-      tip.textContent = items[j].name + " — " + items[j].value + "%";
+      tip.textContent = items[j].name + " — " + toScale(items[j].value) + " / 10";
       path.appendChild(tip);
       gFill.appendChild(path);
     }
@@ -859,15 +922,16 @@
       var value = document.createElement("input");
       value.type = "number";
       value.className = "value";
-      value.min = 0; value.max = 100; value.step = 1;
-      value.value = item.value;
-      value.setAttribute("aria-label", "Score for " + item.name);
+      value.min = 1; value.max = 10; value.step = 0.1;
+      value.value = toScale(item.value);
+      value.setAttribute("aria-label", "Score out of 10 for " + item.name);
 
       var slider = document.createElement("input");
       slider.type = "range";
-      slider.min = 0; slider.max = 100; slider.step = 1;
+      slider.min = 10; slider.max = 100; slider.step = 1;
       slider.value = item.value;
-      slider.setAttribute("aria-label", "Score for " + item.name);
+      slider.setAttribute("aria-label", "Score out of 10 for " + item.name);
+      slider.setAttribute("aria-valuetext", toScale(item.value) + " out of 10");
 
       var delta = document.createElement("span");
       delta.className = "delta";
@@ -877,24 +941,26 @@
         if (b === null) { delta.textContent = ""; delta.className = "delta"; return; }
         var d = items[i].value - b;
         delta.className = "delta " + (d > 0 ? "up" : d < 0 ? "down" : "flat");
-        delta.textContent = d > 0 ? "▲ " + d : d < 0 ? "▼ " + Math.abs(d) : "—";
-        delta.title = "Was " + b;
+        delta.textContent = d === 0 ? "—"
+          : (d > 0 ? "▲ " : "▼ ") + (Math.abs(d) / 10).toFixed(1);
+        delta.title = "Was " + toScale(b);
       }
       paintDelta();
 
       function commit(v) {
         items[i].value = clamp(Math.round(v || 0));
         slider.value = items[i].value;
-        value.value = items[i].value;
+        slider.setAttribute("aria-valuetext", toScale(items[i].value) + " out of 10");
+        value.value = toScale(items[i].value);
         paintDelta();
         save(); drawWheel();
       }
       slider.addEventListener("input", function () { commit(+slider.value); });
       value.addEventListener("input", function () {
         if (value.value === "") return;
-        commit(+value.value);
+        commit(fromScale(value.value));
       });
-      value.addEventListener("blur", function () { commit(+value.value); });
+      value.addEventListener("blur", function () { commit(fromScale(value.value)); });
 
       /* collapsible note */
       var noteWrap = document.createElement("div");
@@ -905,7 +971,8 @@
       note.className = "note-field";
       note.rows = 3;
       note.value = item.note || "";
-      note.placeholder = "Notes on " + (item.name || "this area") + "…";
+      note.placeholder = "Optional \u2014 anything worth recording about " +
+        (item.name || "this area");
       note.setAttribute("aria-label", "Notes on " + item.name);
       note.addEventListener("input", function () {
         items[i].note = note.value;
@@ -922,7 +989,7 @@
         (item.note && item.note.trim() ? " has-note" : "") +
         (openNotes[i] ? " open" : "");
       noteBtn.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg>';
-      noteBtn.title = "Notes";
+      noteBtn.title = "Notes (optional)";
       noteBtn.setAttribute("aria-label", "Notes on " + item.name);
       noteBtn.setAttribute("aria-expanded", openNotes[i] ? "true" : "false");
       noteBtn.addEventListener("click", function () {
@@ -1004,6 +1071,55 @@
     });
   }
 
+  function drawPlan() {
+    var wrap = document.getElementById("plan-rows");
+    wrap.textContent = "";
+
+    actions.forEach(function (text, i) {
+      var row = document.createElement("div");
+      row.className = "plan-row";
+
+      var num = document.createElement("span");
+      num.className = "num";
+      num.textContent = (i + 1) + ".";
+
+      var field = document.createElement("textarea");
+      field.className = "action-field";
+      field.rows = 1;
+      field.value = text;
+      field.placeholder = "Something you will do";
+      field.setAttribute("aria-label", "Action " + (i + 1));
+      field.addEventListener("input", function () {
+        actions[i] = field.value;
+        autosize(field);
+        saveActions();
+      });
+
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "iconbtn remove-action";
+      del.innerHTML = "&times;";
+      del.title = "Remove this action";
+      del.setAttribute("aria-label", "Remove action " + (i + 1));
+      del.addEventListener("click", function () {
+        actions.splice(i, 1);
+        saveActions(); drawPlan();
+      });
+
+      row.appendChild(num);
+      row.appendChild(field);
+      row.appendChild(del);
+      wrap.appendChild(row);
+      requestAnimationFrame(function () { autosize(field); });
+    });
+
+    document.getElementById("btn-add-action").disabled = actions.length >= MAX_ACTIONS;
+    document.getElementById("action-count").textContent =
+      actions.length === 0 ? "none"
+        : actions.length + " action" + (actions.length === 1 ? "" : "s") +
+          (actions.length >= MAX_ACTIONS ? " · maximum " + MAX_ACTIONS : "");
+  }
+
   function drawHistory() {
     var wrap = document.getElementById("history");
     var list = document.getElementById("snaps");
@@ -1020,7 +1136,7 @@
       var meta = document.createElement("span");
       meta.className = "meta";
       meta.textContent = s.items.length + (s.items.length === 1 ? " area · avg " : " areas · avg ") +
-        avgOf(s.items);
+        toScale(avgOf(s.items));
       when.appendChild(meta);
 
       var cmp = document.createElement("button");
@@ -1042,8 +1158,9 @@
         items = s.items.map(function (d) {
           return { name: d.name, value: clamp(d.value), note: d.note || "", hue: d.hue };
         });
+        actions = normaliseActions(s.actions);
         compareId = null; openNotes = {}; activeIndex = -1;
-        save(); renderAll();
+        save(); saveActions(); renderAll();
       });
 
       var del = document.createElement("button");
@@ -1074,7 +1191,7 @@
   }
 
   function render() { drawRows(); drawWheel(); }
-  function renderAll() { render(); drawHistory(); }
+  function renderAll() { render(); drawPlan(); drawHistory(); }
 
   /* ---------- actions ---------- */
 
@@ -1105,7 +1222,10 @@
   });
 
   document.getElementById("btn-export").addEventListener("click", function () {
-    var payload = JSON.stringify({ kind: "wheel-of-life", version: 1, current: items, snapshots: snaps }, null, 2);
+    var payload = JSON.stringify({
+      kind: "wheel-of-life", version: 2,
+      current: items, actions: actions, snapshots: snaps
+    }, null, 2);
     var a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
     a.download = "wheel-of-life-backup-" + new Date().toISOString().slice(0, 10) + ".json";
@@ -1138,11 +1258,20 @@
         };
       });
       snaps = Array.isArray(data.snapshots) ? data.snapshots : [];
+      actions = normaliseActions(data.actions);
       compareId = null; openNotes = {}; activeIndex = -1;
-      save(); saveSnaps(); renderAll();
+      save(); saveSnaps(); saveActions(); renderAll();
       fileInput.value = "";
     };
     reader.readAsText(f);
+  });
+
+  document.getElementById("btn-add-action").addEventListener("click", function () {
+    if (actions.length >= MAX_ACTIONS) return;
+    actions.push("");
+    saveActions(); drawPlan();
+    var fields = document.querySelectorAll(".action-field");
+    fields[fields.length - 1].focus();
   });
 
   document.getElementById("btn-notes").addEventListener("click", function () {
@@ -1154,18 +1283,20 @@
 
   document.getElementById("btn-reset").addEventListener("click", function () {
     if (!confirm("Reset to the " + DEFAULTS.length +
-                 " starting areas at 50%? This clears the current scores and notes. Saved snapshots are kept.")) return;
+                 " starting areas at 5.0? This clears the current scores, notes and actions. Saved snapshots are kept.")) return;
     items = freshDefaults();
+    actions = blankActions();
     openNotes = {};
     activeIndex = -1;
     compareId = null;
-    save(); renderAll();
+    save(); saveActions(); renderAll();
   });
 
   document.getElementById("btn-print").addEventListener("click", function () { window.print(); });
 
   /* every note goes into the PDF at full height, whatever is collapsed on screen */
   var printCollapsed = [];
+  var printHiddenActions = [];
   window.addEventListener("beforeprint", function () {
     printCollapsed = [];
     document.querySelectorAll(".row").forEach(function (row, i) {
@@ -1174,6 +1305,12 @@
       if (wrap.hidden) { printCollapsed.push(i); wrap.hidden = false; }
       autosize(ta);
     });
+    printHiddenActions = [];
+    document.querySelectorAll(".plan-row").forEach(function (row, i) {
+      var field = row.querySelector(".action-field");
+      if (!field.value.trim()) { printHiddenActions.push(row); row.style.display = "none"; }
+      else { autosize(field); }
+    });
   });
   window.addEventListener("afterprint", function () {
     var rows = document.querySelectorAll(".row");
@@ -1181,6 +1318,8 @@
       if (rows[i]) rows[i].querySelector(".note-wrap").hidden = true;
     });
     printCollapsed = [];
+    printHiddenActions.forEach(function (row) { row.style.display = ""; });
+    printHiddenActions = [];
   });
 
   document.getElementById("btn-theme").addEventListener("click", function () {
@@ -1196,10 +1335,6 @@
       document.documentElement.setAttribute("data-theme", savedTheme);
     }
   } catch (e) {}
-
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
-    if (!document.documentElement.getAttribute("data-theme")) render();
-  });
 
   document.getElementById("btn-png").addEventListener("click", function () {
     var prevActive = activeIndex;

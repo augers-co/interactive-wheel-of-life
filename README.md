@@ -21,20 +21,24 @@ and can show you exactly what moved since last time.
 
 ## What it does
 
-- **Ten sliders, or three, or twenty.** Rename any area, add your own, delete
+- **Eight areas, or three, or twenty.** Rename any area, add your own, delete
   the ones that don't apply. The wheel re-divides itself.
 - **Drag to reorder.** List order is wheel order, so you can put related areas
   next to each other. Keyboard works too — focus a drag handle and use ↑/↓.
-- **A note under every area,** collapsed by default. Click the chevron to write
-  down *why* a score is what it is. That context is usually worth more than the
-  number.
+- **Scored 1–10**, the scale the worksheet uses: 1 is very dissatisfied, 10 is
+  fully satisfied. The slider is finer than whole numbers, so 7.4 is available
+  if 7 and 8 both feel wrong.
+- **An optional note under every area,** collapsed by default. Click the chevron
+  to record why a score is what it is.
+- **An action plan.** Three optional rows beneath the areas for what you'll
+  actually do. Add more, or delete them all.
 - **Snapshots.** Save a dated copy of the whole wheel. Later, hit *Compare* and
   the wheel draws a line across each slice showing where it stood then, with a
   ▲/▼ change beside every slider.
-- **Print or save as PDF** with every note expanded — good for taking into a
-  coaching session.
+- **Print or save as PDF** with every note expanded and blank actions omitted —
+  good for taking into a coaching session.
 - **Download PNG** for a dated image of just the wheel.
-- **Light and dark**, follows your system or toggles manually.
+- **Light by default**, with a dark toggle.
 
 ## Using it
 
@@ -55,8 +59,8 @@ There is no backend. Nothing is uploaded, there is no analytics, and the page
 makes no network requests of any kind — you can pull the plug on your wifi and
 it still works.
 
-Scores, notes and snapshots are saved in your browser's `localStorage`, on the
-device you're using. That means:
+Scores, notes, actions and snapshots are saved in your browser's `localStorage`,
+on the device you're using. That means:
 
 - Your wheel does not follow you to another browser or another computer.
 - Clearing site data, or "clear history" with site data included, erases it.
@@ -79,8 +83,8 @@ They are a draft, not a prescription. Rename them, split one in two, drop the
 ones that don't apply — the exercise only works if the slices describe your
 actual life. [How to use this](instructions.html) walks through it.
 
-Most paper versions score each area out of 10. This one uses 0–100, which leaves
-room for "a bit better than last time" without inventing decimals.
+Scores run 1–10, as on the paper worksheet, with one decimal place so you can
+register small movements between sittings.
 
 ## For coaches
 
