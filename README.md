@@ -35,9 +35,15 @@ and can show you exactly what moved since last time.
 - **Snapshots.** Save a dated copy of the whole wheel. Later, hit *Compare* and
   the wheel draws a line across each slice showing where it stood then, with a
   ▲/▼ change beside every slider.
-- **Print or save as PDF** with every note expanded and blank actions omitted —
-  good for taking into a coaching session.
-- **Download PNG** for a dated image of just the wheel.
+- **Save as PDF** — a clean one-page sheet with your name and the date, the
+  wheel, every score and note, and the action plan. Blank notes and actions are
+  left out and no interface chrome appears. Prints on paper from the same
+  dialog.
+- **Export file / Import file** — the whole wheel, including snapshots, as a
+  single file. Send it to a coach and they can import it and work with your
+  wheel live, or reopen it yourself months later.
+- **An optional name field**, used on the printed sheet and in export
+  filenames.
 - **Light by default**, with a dark toggle.
 
 ## Using it
@@ -52,6 +58,18 @@ git clone https://github.com/augers-co/interactive-wheel-of-life.git
 ```
 
 or use **Code → Download ZIP** on GitHub, then open `index.html`.
+
+## Sharing it
+
+Two exports, doing different jobs:
+
+| | What it's for |
+|---|---|
+| **Save as PDF** | Something to read or hand over. Fixed, final, universal. |
+| **Export file** | Something to carry on with. A coach imports it and sees your live wheel; you reopen it next quarter and compare. |
+
+Neither goes near a server — the PDF is produced by your browser's own print
+engine and the file is written straight to your disk.
 
 ## Your data
 

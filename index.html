@@ -57,6 +57,19 @@
     margin: 0 0 4px;
   }
   .sub { color: var(--text-secondary); font-size: 13.5px; margin: 0; max-width: 62ch; }
+  .who {
+    font: inherit; font-size: 13.5px; color: var(--text-secondary);
+    background: transparent; border: 1px solid transparent;
+    border-radius: 6px; padding: 3px 6px; margin: 0 0 4px -6px;
+    width: 100%; max-width: 280px; display: block;
+  }
+  .who:hover { border-color: var(--border); }
+  .who:focus { border-color: var(--border); background: var(--surface-1); outline: none; color: var(--text-primary); }
+  .who::placeholder { color: var(--muted); }
+
+  /* only ever seen on paper — who this wheel belongs to, and when */
+  .printline { display: none; margin: 2px 0 0; font-size: 13px; color: #444; }
+
   .howto-line { margin: 6px 0 0; font-size: 13px; }
   .howto-line a { color: var(--muted); }
   .howto-line a:hover { color: var(--text-primary); }
@@ -259,6 +272,13 @@
   /* ---- history ---- */
   .history { margin-top: 26px; }
   .history[hidden] { display: none; }
+  .file-actions { white-space: nowrap; }
+  .empty {
+    margin: 2px 4px 0; font-size: 12px; line-height: 1.6; color: var(--muted);
+    max-width: 68ch;
+  }
+  .empty strong { color: var(--text-secondary); font-weight: 600; }
+  .empty[hidden] { display: none; }
   .snap {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto auto;
@@ -298,7 +318,9 @@
   @media print {
     @page { margin: 14mm; }
     .actions, .add-wrap, .row .iconbtn, .plan-row .iconbtn, .footnote,
-    .history, .cmp-bar .linkbtn, .plan-head-hint { display: none !important; }
+    .history, .cmp-bar .linkbtn, .plan-head-hint, .panel-head .linkbtn,
+    .sub, .howto-line, .who { display: none !important; }
+    .printline { display: block !important; }
     body { background: #fff; }
     .page { max-width: none; padding: 0; }
     .layout { gap: 18px; }
@@ -306,10 +328,14 @@
     #wheel { max-width: 520px; }
     .panel { break-before: auto; }
     .row, .plan-row { break-inside: avoid; page-break-inside: avoid; }
-    .action-field { border-bottom: 1px solid #e5e5e5; border-radius: 0; color: #333; }
+    .action-field {
+      border: none; border-bottom: 1px solid #e5e5e5; border-radius: 0;
+      color: #333; padding-left: 0;
+    }
     .note-wrap[hidden] { display: block !important; }
+    /* on paper a note reads better as prose under its area than as a box */
     .note-field {
-      border-color: #e5e5e5; min-height: 0; resize: none;
+      border: none; min-height: 0; resize: none; padding: 0 0 6px;
       background: transparent; color: #333;
     }
     .note-field:placeholder-shown { display: none; }
@@ -322,14 +348,16 @@
   <header class="top">
     <div class="titles">
       <h1>Wheel of Life</h1>
+      <p class="printline" id="printline"></p>
+      <input id="who" class="who" type="text" autocomplete="name"
+             placeholder="Your name (optional)" aria-label="Your name, optional">
       <p class="sub">Rate each area from 1 to 10 — 1 is very dissatisfied, 10 is fully satisfied.</p>
       <p class="howto-line"><a href="instructions.html">How to use this</a></p>
     </div>
     <div class="actions">
       <button id="btn-theme" type="button" title="Switch light / dark">Theme</button>
       <button id="btn-reset" type="button">Reset</button>
-      <button id="btn-print" type="button">Print</button>
-      <button id="btn-png" type="button">Download PNG</button>
+      <button id="btn-pdf" type="button">Save as PDF</button>
       <button id="btn-snap" type="button" class="primary">Save snapshot</button>
     </div>
   </header>
@@ -370,20 +398,24 @@
       </div>
     </section>
 
-    <section class="history" id="history" hidden>
+    <section class="history" id="history">
       <div class="panel-head">
         <h2>History</h2>
-        <span>
-          <button id="btn-export" class="linkbtn" type="button">Export backup</button>
-          <button id="btn-import" class="linkbtn" type="button">Import</button>
+        <span class="file-actions">
+          <button id="btn-open" class="linkbtn" type="button">Import file</button>
+          <button id="btn-save" class="linkbtn" type="button">Export file</button>
         </span>
       </div>
       <div id="snaps"></div>
+      <p class="empty" id="snaps-empty">No snapshots yet. <strong>Save snapshot</strong>
+        keeps a dated copy here, so you can see what has changed when you come back.
+        <strong>Export file</strong> writes the whole wheel out to a file you keep —
+        send that to your coach, or <strong>Import file</strong> to load one back in.</p>
       <input type="file" id="file-import" accept="application/json,.json" hidden>
     </section>
   </div>
 
-  <p class="footnote">Scores, notes, actions and snapshots save to this browser's local storage on this device. Nothing is uploaded. Clearing site data would erase them, so use Export backup if you are counting on the history months from now. Printing includes notes and actions; the PNG is the wheel only.</p>
+  <p class="footnote">Scores, notes, actions and snapshots are kept in this browser's local storage on this device. Nothing is uploaded. Clearing site data would erase them, so use Export file if you are counting on the history months from now, or want to send your wheel to someone. Save as PDF produces a page you can read or hand over; Export file produces one that can be loaded back in and carried on with.</p>
 </div>
 
 <script>
@@ -423,11 +455,13 @@
 
   var SNAPS = STORE + ":snaps";
   var ACTIONS = STORE + ":actions";
+  var WHO = STORE + ":who";
   var START_ACTIONS = 3, MAX_ACTIONS = 10;
 
   var items = load() || freshDefaults();
   var snaps = loadSnaps();
   var actions = loadActions();
+  var who = loadWho();
   var compareId = null;
   var activeIndex = -1;
   var openNotes = {};
@@ -499,6 +533,37 @@
       actions: actions.slice()
     });
     saveSnaps();
+  }
+
+  /* ---------- whose wheel this is ---------- */
+
+  function loadWho() {
+    try { return localStorage.getItem(WHO) || ""; } catch (e) { return ""; }
+  }
+  function saveWho() {
+    try { localStorage.setItem(WHO, who); } catch (e) {}
+  }
+  function isoToday() {
+    var d = new Date();
+    return d.getFullYear() + "-" +
+      String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0");
+  }
+  function longToday() {
+    return new Date().toLocaleDateString(undefined, {
+      year: "numeric", month: "long", day: "numeric"
+    });
+  }
+  /* "Ana Maria O'Brien" -> "ana-maria-o-brien", so shared files carry a usable
+     name. Accents are folded rather than dropped, which would eat letters. */
+  function slugWho() {
+    var t = who.trim().toLowerCase();
+    try { t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); } catch (e) {}
+    t = t.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return t ? t + "-" : "";
+  }
+  function exportName(ext) {
+    return "wheel-of-life-" + slugWho() + isoToday() + "." + ext;
   }
 
   /* ---------- action plan ---------- */
@@ -624,7 +689,6 @@
 
   var CX = 360, CY = 290, R_OUT = 200, R_IN = 0;
   var LABEL_R = R_OUT + 15;
-  var VB_W = 720, VB_H = 590;
 
   function polar(r, deg) {
     var rad = (deg - 90) * Math.PI / 180;
@@ -1065,12 +1129,6 @@
       allOpen ? "Hide all notes" : "Show all notes";
   }
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-    });
-  }
-
   function drawPlan() {
     var wrap = document.getElementById("plan-rows");
     wrap.textContent = "";
@@ -1121,9 +1179,8 @@
   }
 
   function drawHistory() {
-    var wrap = document.getElementById("history");
     var list = document.getElementById("snaps");
-    wrap.hidden = snaps.length === 0;
+    document.getElementById("snaps-empty").hidden = snaps.length > 0;
     list.textContent = "";
 
     snaps.forEach(function (s) {
@@ -1221,20 +1278,20 @@
     renderAll();
   });
 
-  document.getElementById("btn-export").addEventListener("click", function () {
+  document.getElementById("btn-save").addEventListener("click", function () {
     var payload = JSON.stringify({
-      kind: "wheel-of-life", version: 2,
-      current: items, actions: actions, snapshots: snaps
+      kind: "wheel-of-life", version: 3,
+      who: who, current: items, actions: actions, snapshots: snaps
     }, null, 2);
     var a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
-    a.download = "wheel-of-life-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    a.download = exportName("json");
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
 
   var fileInput = document.getElementById("file-import");
-  document.getElementById("btn-import").addEventListener("click", function () { fileInput.click(); });
+  document.getElementById("btn-open").addEventListener("click", function () { fileInput.click(); });
   fileInput.addEventListener("change", function () {
     var f = fileInput.files && fileInput.files[0];
     if (!f) return;
@@ -1243,11 +1300,11 @@
       var data;
       try { data = JSON.parse(reader.result); } catch (e) { data = null; }
       if (!data || data.kind !== "wheel-of-life" || !Array.isArray(data.current)) {
-        alert("That does not look like a Wheel of Life backup.");
+        alert("That does not look like a Wheel of Life file.");
         fileInput.value = ""; return;
       }
-      if (!confirm("Replace the current wheel and all " + snaps.length +
-                   " saved snapshots with this backup?")) { fileInput.value = ""; return; }
+      if (!confirm("Import this file? It replaces the current wheel and all " +
+                   snaps.length + " saved snapshots.")) { fileInput.value = ""; return; }
       items = data.current.map(function (d, i) {
         return {
           name: String(d.name || "Untitled"),
@@ -1259,8 +1316,10 @@
       });
       snaps = Array.isArray(data.snapshots) ? data.snapshots : [];
       actions = normaliseActions(data.actions);
+      who = typeof data.who === "string" ? data.who : "";
+      document.getElementById("who").value = who;
       compareId = null; openNotes = {}; activeIndex = -1;
-      save(); saveSnaps(); saveActions(); renderAll();
+      save(); saveSnaps(); saveActions(); saveWho(); renderAll();
       fileInput.value = "";
     };
     reader.readAsText(f);
@@ -1287,22 +1346,39 @@
     items = freshDefaults();
     actions = blankActions();
     openNotes = {};
+    /* the name is the person, not the wheel — reset leaves it alone */
     activeIndex = -1;
     compareId = null;
     save(); saveActions(); renderAll();
   });
 
-  document.getElementById("btn-print").addEventListener("click", function () { window.print(); });
+  document.getElementById("btn-pdf").addEventListener("click", function () { window.print(); });
+
+  var whoInput = document.getElementById("who");
+  whoInput.value = who;
+  whoInput.addEventListener("input", function () {
+    who = whoInput.value;
+    saveWho();
+  });
 
   /* every note goes into the PDF at full height, whatever is collapsed on screen */
   var printCollapsed = [];
   var printHiddenActions = [];
+  var printTitle = null;
   window.addEventListener("beforeprint", function () {
+    /* browsers name the saved PDF after document.title */
+    printTitle = document.title;
+    document.title = "Wheel of Life" + (who.trim() ? " - " + who.trim() : "") +
+      " - " + isoToday();
+    document.getElementById("printline").textContent =
+      (who.trim() ? who.trim() + " · " : "") + longToday();
+
     printCollapsed = [];
     document.querySelectorAll(".row").forEach(function (row, i) {
       var wrap = row.querySelector(".note-wrap");
       var ta = row.querySelector(".note-field");
       if (wrap.hidden) { printCollapsed.push(i); wrap.hidden = false; }
+      ta.rows = 1;              /* drop the on-screen 3-row floor */
       autosize(ta);
     });
     printHiddenActions = [];
@@ -1318,8 +1394,14 @@
       if (rows[i]) rows[i].querySelector(".note-wrap").hidden = true;
     });
     printCollapsed = [];
+    rows.forEach(function (row) {
+      var ta = row.querySelector(".note-field");
+      ta.rows = 3;
+      autosize(ta);
+    });
     printHiddenActions.forEach(function (row) { row.style.display = ""; });
     printHiddenActions = [];
+    if (printTitle !== null) { document.title = printTitle; printTitle = null; }
   });
 
   document.getElementById("btn-theme").addEventListener("click", function () {
@@ -1335,64 +1417,6 @@
       document.documentElement.setAttribute("data-theme", savedTheme);
     }
   } catch (e) {}
-
-  document.getElementById("btn-png").addEventListener("click", function () {
-    var prevActive = activeIndex;
-    activeIndex = -1; applyHighlight();
-
-    var t = theme();
-    var clone = svg.cloneNode(true);
-    clone.setAttribute("xmlns", SVGNS);
-    clone.setAttribute("width", VB_W);
-    clone.setAttribute("height", VB_H);
-
-    var bg = el("rect", { x: 0, y: 0, width: VB_W, height: VB_H, fill: t.surface });
-    clone.insertBefore(bg, clone.firstChild);
-
-    var stamp = el("text", {
-      x: CX, y: VB_H - 20, "text-anchor": "middle", "font-size": 11,
-      "font-family": "system-ui, -apple-system, 'Segoe UI', sans-serif", fill: t.muted
-    });
-    stamp.textContent = "Wheel of Life · " + new Date().toLocaleDateString(undefined, {
-      year: "numeric", month: "long", day: "numeric"
-    });
-    clone.appendChild(stamp);
-
-    var svgText = new XMLSerializer().serializeToString(clone);
-    var url = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml;charset=utf-8" }));
-    var img = new Image();
-
-    img.onload = function () {
-      var scale = 2;
-      var canvas = document.createElement("canvas");
-      canvas.width = VB_W * scale; canvas.height = VB_H * scale;
-      var ctx = canvas.getContext("2d");
-      ctx.fillStyle = t.surface;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-
-      canvas.toBlob(function (blob) {
-        var d = new Date();
-        var stampName = d.getFullYear() + "-" +
-          String(d.getMonth() + 1).padStart(2, "0") + "-" +
-          String(d.getDate()).padStart(2, "0");
-        var a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "wheel-of-life-" + stampName + ".png";
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-      }, "image/png");
-
-      activeIndex = prevActive; applyHighlight();
-    };
-    img.onerror = function () {
-      URL.revokeObjectURL(url);
-      alert("Could not build the PNG. Use Print instead and save as PDF.");
-      activeIndex = prevActive; applyHighlight();
-    };
-    img.src = url;
-  });
 
   renderAll();
 })();
