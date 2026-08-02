@@ -26,8 +26,10 @@ and can show you exactly what moved since last time.
 - **Drag to reorder.** List order is wheel order, so you can put related areas
   next to each other. Keyboard works too — focus a drag handle and use ↑/↓.
 - **Recolour any area** by clicking its dot — a native colour picker, no
-  library. Defaults are generated to be distinct from each other, and a chosen
-  colour is held to a lightness band so it stays legible in both themes.
+  library. Defaults are generated to be distinct from each other. A chosen
+  colour is rendered exactly; if it is too close to the page to read — pure
+  yellow on white, say — the slice picks up a thin outline in a deeper shade of
+  itself rather than having its colour altered.
 - **Scored 1–10**, the scale the worksheet uses: 1 very dissatisfied, 10 fully
   satisfied. Each slice reaches out in proportion, so a 5 sits half way to the
   edge. The slider moves in tenths, so 7.4 is available if 7 and 8 both feel
