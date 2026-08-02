@@ -49,14 +49,15 @@
 
   header.top {
     display: flex; flex-wrap: wrap; align-items: flex-end;
-    gap: 16px; margin-bottom: 28px;
+    gap: 16px; margin-bottom: 14px;
   }
   .titles { flex: 1 1 320px; min-width: 260px; }
   h1 {
     font-size: 26px; font-weight: 620; letter-spacing: -0.01em;
     margin: 0 0 4px;
   }
-  .sub { color: var(--text-secondary); font-size: 13.5px; margin: 0; max-width: 62ch; }
+  /* full width, outside the header flex row, so it does not wrap after two words */
+  .sub { color: var(--text-secondary); font-size: 13.5px; margin: 0; }
   .who {
     font: inherit; font-size: 13.5px; color: var(--text-secondary);
     background: transparent; border: 1px solid transparent;
@@ -70,7 +71,7 @@
   /* only ever seen on paper — who this wheel belongs to, and when */
   .printline { display: none; margin: 2px 0 0; font-size: 13px; color: #444; }
 
-  .howto-line { margin: 6px 0 0; font-size: 13px; }
+  .howto-line { margin: 5px 0 22px; font-size: 13px; }
   .howto-line a { color: var(--muted); }
   .howto-line a:hover { color: var(--text-primary); }
 
@@ -121,6 +122,8 @@
   }
   .linkbtn:hover { background: var(--hover); color: var(--text-secondary); }
   .linkbtn[hidden] { display: none; }
+  button.armed { color: var(--down); border-color: var(--down); font-weight: 600; }
+  .linkbtn.armed { color: var(--down); background: var(--hover); }
 
   .rows { display: flex; flex-direction: column; }
   .row {
@@ -337,18 +340,29 @@
     .card { border-color: #ddd; padding: 0; }
     #wheel { max-width: 520px; }
     .panel { break-before: auto; }
-    .row, .plan-row { break-inside: avoid; page-break-inside: avoid; }
-    .action-field {
-      border: none; border-bottom: 1px solid #e5e5e5; border-radius: 0;
-      color: #333; padding-left: 0;
+    /* WebKit routinely ignores break-inside on flex and grid children, which
+       split rows mid-line. Blockifying the containers for print gives its
+       paginator something it handles reliably. */
+    .layout, .rows { display: block; }
+    .row, .plan-row, .note-wrap, .note-field, .card {
+      break-inside: avoid; page-break-inside: avoid;
     }
-    .note-wrap[hidden] { display: block !important; }
-    /* on paper a note reads better as prose under its area than as a box */
-    .note-field {
-      border: none; min-height: 0; resize: none; padding: 0 0 6px;
-      background: transparent; color: #333;
+    /* never strand a section heading at the foot of a page */
+    .panel-head { break-after: avoid; page-break-after: avoid; }
+    /* page 1 is the wheel; the detail starts on page 2 */
+    .panel { break-before: page; page-break-before: always; }
+
+    /* Textareas scroll rather than grow and size by row count, so on paper the
+       text is copied into plain blocks instead — exact height, clean breaks. */
+    .note-field, .action-field { display: none !important; }
+    .note-print {
+      font-size: 12.5px; line-height: 1.45; color: #333;
+      margin: 0 0 7px; white-space: pre-wrap;
     }
-    .note-field:placeholder-shown { display: none; }
+    .action-print {
+      font-size: 13px; line-height: 1.45; color: #333;
+      padding: 3px 0 5px; border-bottom: 1px solid #e5e5e5;
+    }
   }
 </style>
 </head>
@@ -361,8 +375,6 @@
       <p class="printline" id="printline"></p>
       <input id="who" class="who" type="text" autocomplete="name"
              placeholder="Your name (optional)" aria-label="Your name, optional">
-      <p class="sub">Rate each area from 1 to 10 — 1 is very dissatisfied, 10 is fully satisfied.</p>
-      <p class="howto-line"><a href="instructions.html">How to use this</a></p>
     </div>
     <div class="actions">
       <button id="btn-theme" type="button" title="Switch light / dark">Theme</button>
@@ -371,6 +383,9 @@
       <button id="btn-snap" type="button" class="primary">Save snapshot</button>
     </div>
   </header>
+
+  <p class="sub">Rate each area from 1 to 10 — 1 is very dissatisfied, 10 is fully satisfied.</p>
+  <p class="howto-line"><a href="instructions.html">How to use this</a></p>
 
   <div class="layout">
     <section class="card">
@@ -518,10 +533,12 @@
   function save() {
     try { localStorage.setItem(STORE, JSON.stringify(items)); } catch (e) {}
   }
-  /* Scores are held internally as 10–100 so the slider stays fine-grained, but
-     are always shown on the worksheet's 1–10 scale: 1 = very dissatisfied,
-     10 = fully satisfied. Old saves below 10 clamp up on the way in. */
-  function clamp(v) { return Math.max(10, Math.min(100, v)); }
+  /* Scores are held internally as 0–100 so the slider stays finer than whole
+     numbers, and shown on the worksheet's scale, which is presented as 1–10.
+     The floor is 0 rather than 1 so the arithmetic matches the drawing — a 5
+     reaches exactly half way out — and so anyone who wants a true zero can
+     have one. Nothing in the copy suggests it. */
+  function clamp(v) { return Math.max(0, Math.min(100, v)); }
   function toScale(v) { return (v / 10).toFixed(1); }
   function fromScale(x) { return clamp(Math.round((+x || 0) * 10)); }
 
@@ -913,6 +930,37 @@
 
   /* ---------- render the controls ---------- */
 
+  /* Destructive actions used to sit behind confirm(). A browser that has been
+     told to stop showing dialogs for a page makes confirm() return false
+     forever, so those actions silently did nothing. Arming the button instead
+     keeps the safety net without depending on a dialog. */
+  var armedBtn = null, armedTimer = null;
+
+  function disarm() {
+    if (armedTimer) { clearTimeout(armedTimer); armedTimer = null; }
+    if (armedBtn) {
+      armedBtn.textContent = armedBtn.getAttribute("data-label");
+      armedBtn.classList.remove("armed");
+      armedBtn = null;
+    }
+  }
+
+  function confirmButton(btn, prompt, action) {
+    btn.setAttribute("data-label", btn.textContent);
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (armedBtn === btn) { disarm(); action(); return; }
+      disarm();
+      armedBtn = btn;
+      btn.textContent = prompt;
+      btn.classList.add("armed");
+      armedTimer = setTimeout(disarm, 4000);
+    });
+  }
+
+  document.addEventListener("click", disarm);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") disarm(); });
+
   var rowsEl = document.getElementById("rows");
   var dragging = null;
 
@@ -1044,13 +1092,13 @@
       var value = document.createElement("input");
       value.type = "number";
       value.className = "value";
-      value.min = 1; value.max = 10; value.step = 0.1;
+      value.min = 0; value.max = 10; value.step = 0.1;
       value.value = toScale(item.value);
       value.setAttribute("aria-label", "Score out of 10 for " + item.name);
 
       var slider = document.createElement("input");
       slider.type = "range";
-      slider.min = 10; slider.max = 100; slider.step = 1;
+      slider.min = 0; slider.max = 100; slider.step = 1;
       slider.value = item.value;
       slider.setAttribute("aria-label", "Score out of 10 for " + item.name);
       slider.setAttribute("aria-valuetext", toScale(item.value) + " out of 10");
@@ -1272,9 +1320,7 @@
       restore.type = "button";
       restore.className = "linkbtn";
       restore.textContent = "Restore";
-      restore.addEventListener("click", function () {
-        if (!confirm("Replace the current wheel with the " + fmtDate(s.at) +
-                     " snapshot? Your current scores and notes will be overwritten.")) return;
+      confirmButton(restore, "Overwrite?", function () {
         items = s.items.map(function (d) {
           return { name: d.name, value: clamp(d.value), note: d.note || "", hue: d.hue,
                    color: normHex(d.color) };
@@ -1288,8 +1334,7 @@
       del.type = "button";
       del.className = "linkbtn";
       del.textContent = "Delete";
-      del.addEventListener("click", function () {
-        if (!confirm("Delete the " + fmtDate(s.at) + " snapshot?")) return;
+      confirmButton(del, "Delete?", function () {
         snaps = snaps.filter(function (x) { return x.id !== s.id; });
         if (compareId === s.id) compareId = null;
         saveSnaps(); renderAll();
@@ -1355,7 +1400,9 @@
   });
 
   var fileInput = document.getElementById("file-import");
-  document.getElementById("btn-open").addEventListener("click", function () { fileInput.click(); });
+  confirmButton(document.getElementById("btn-open"), "Replace current?", function () {
+    fileInput.click();
+  });
   fileInput.addEventListener("change", function () {
     var f = fileInput.files && fileInput.files[0];
     if (!f) return;
@@ -1367,8 +1414,6 @@
         alert("That does not look like a Wheel of Life file.");
         fileInput.value = ""; return;
       }
-      if (!confirm("Import this file? It replaces the current wheel and all " +
-                   snaps.length + " saved snapshots.")) { fileInput.value = ""; return; }
       items = data.current.map(function (d, i) {
         return {
           name: String(d.name || "Untitled"),
@@ -1398,8 +1443,7 @@
     fields[fields.length - 1].focus();
   });
 
-  document.getElementById("btn-colours").addEventListener("click", function () {
-    if (!confirm("Put every area back to its default colour?")) return;
+  confirmButton(document.getElementById("btn-colours"), "Reset colours?", function () {
     items.forEach(function (d) { d.color = ""; });
     save(); render();
   });
@@ -1411,9 +1455,7 @@
     drawRows();
   });
 
-  document.getElementById("btn-reset").addEventListener("click", function () {
-    if (!confirm("Reset to the " + DEFAULTS.length +
-                 " starting areas at 5.0? This clears the current scores, notes and actions. Saved snapshots are kept.")) return;
+  confirmButton(document.getElementById("btn-reset"), "Reset everything?", function () {
     items = freshDefaults();
     actions = blankActions();
     openNotes = {};
@@ -1433,7 +1475,8 @@
   });
 
   /* every note goes into the PDF at full height, whatever is collapsed on screen */
-  var printCollapsed = [];
+  var printCollapsed = [];      /* were hidden, shown for print */
+  var printRevealed = [];       /* were shown, hidden for print (empty) */
   var printHiddenActions = [];
   var printTitle = null;
   window.addEventListener("beforeprint", function () {
@@ -1445,18 +1488,30 @@
       (who.trim() ? who.trim() + " · " : "") + longToday();
 
     printCollapsed = [];
+    printRevealed = [];
     document.querySelectorAll(".row").forEach(function (row, i) {
       var wrap = row.querySelector(".note-wrap");
       var ta = row.querySelector(".note-field");
+      var text = ta.value.trim();
+      if (!text) {
+        if (!wrap.hidden) { printRevealed.push(i); wrap.hidden = true; }
+        return;
+      }
       if (wrap.hidden) { printCollapsed.push(i); wrap.hidden = false; }
-      ta.rows = 1;              /* drop the on-screen 3-row floor */
-      autosize(ta);
+      var block = document.createElement("div");
+      block.className = "note-print";
+      block.textContent = text;
+      wrap.appendChild(block);
     });
     printHiddenActions = [];
-    document.querySelectorAll(".plan-row").forEach(function (row, i) {
+    document.querySelectorAll(".plan-row").forEach(function (row) {
       var field = row.querySelector(".action-field");
-      if (!field.value.trim()) { printHiddenActions.push(row); row.style.display = "none"; }
-      else { autosize(field); }
+      var text = field.value.trim();
+      if (!text) { printHiddenActions.push(row); row.style.display = "none"; return; }
+      var block = document.createElement("div");
+      block.className = "action-print";
+      block.textContent = text;
+      row.insertBefore(block, field.nextSibling);
     });
   });
   window.addEventListener("afterprint", function () {
@@ -1464,11 +1519,12 @@
     printCollapsed.forEach(function (i) {
       if (rows[i]) rows[i].querySelector(".note-wrap").hidden = true;
     });
-    printCollapsed = [];
-    rows.forEach(function (row) {
-      var ta = row.querySelector(".note-field");
-      ta.rows = 3;
-      autosize(ta);
+    printRevealed.forEach(function (i) {
+      if (rows[i]) rows[i].querySelector(".note-wrap").hidden = false;
+    });
+    printCollapsed = []; printRevealed = [];
+    document.querySelectorAll(".note-print, .action-print").forEach(function (n) {
+      n.parentNode.removeChild(n);
     });
     printHiddenActions.forEach(function (row) { row.style.display = ""; });
     printHiddenActions = [];

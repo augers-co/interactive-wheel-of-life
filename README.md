@@ -28,9 +28,10 @@ and can show you exactly what moved since last time.
 - **Recolour any area** by clicking its dot — a native colour picker, no
   library. Defaults are generated to be distinct from each other, and a chosen
   colour is held to a lightness band so it stays legible in both themes.
-- **Scored 1–10**, the scale the worksheet uses: 1 is very dissatisfied, 10 is
-  fully satisfied. The slider is finer than whole numbers, so 7.4 is available
-  if 7 and 8 both feel wrong.
+- **Scored 1–10**, the scale the worksheet uses: 1 very dissatisfied, 10 fully
+  satisfied. Each slice reaches out in proportion, so a 5 sits half way to the
+  edge. The slider moves in tenths, so 7.4 is available if 7 and 8 both feel
+  wrong. It will go to 0 if someone wants it to; nothing suggests it.
 - **An optional note under every area,** collapsed by default. Click the chevron
   to record why a score is what it is.
 - **An action plan.** Three optional rows beneath the areas for what you'll
@@ -87,9 +88,9 @@ on the device you're using. That means:
 - Clearing site data, or "clear history" with site data included, erases it.
 - Someone else using your browser profile can see it.
 
-Use **Export backup** to write everything to a single JSON file, and **Import**
-to load it back. If you plan to compare wheels months apart, take a backup — it
-is the only copy that survives a browser cleanup.
+Use **Export file** to write everything to a single JSON file, and **Import
+file** to load it back. If you plan to compare wheels months apart, export one —
+it is the only copy that survives a browser cleanup.
 
 ## The starting categories
 
@@ -131,6 +132,14 @@ all functional — in **Chrome**, **Firefox** and **Safari** on macOS. It should
 work in any current browser. Drag-to-reorder uses HTML5 drag and drop, which
 doesn't fire on touchscreens; on a tablet or phone, use the keyboard arrows on
 the drag handle instead.
+
+## A note on destructive actions
+
+Reset, Restore, Delete and Import don't use `confirm()`. A browser that has been
+told to stop showing dialogs for a page makes `confirm()` return `false`
+forever, which turns every guarded action into a silent no-op. Those buttons arm
+on the first click instead — they relabel themselves as a question, and act on a
+second click within four seconds. Clicking elsewhere or pressing Escape cancels.
 
 ## Contributing
 
