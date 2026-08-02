@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to use the Wheel of Life</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --muted: #898781;
+    --gridline: #e1e0d9;
+    --border: rgba(11,11,11,0.10);
+    --hover: rgba(11,11,11,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --muted: #898781;
+      --gridline: #2c2c2a;
+      --border: rgba(255,255,255,0.10);
+      --hover: rgba(255,255,255,0.06);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted: #898781;
+    --gridline: #2c2c2a;
+    --border: rgba(255,255,255,0.10);
+    --hover: rgba(255,255,255,0.06);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font: 15px/1.62 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 680px; margin: 0 auto; padding: 32px 24px 72px; }
+
+  header.top {
+    display: flex; flex-wrap: wrap; align-items: baseline;
+    justify-content: space-between; gap: 12px; margin-bottom: 30px;
+  }
+  h1 { font-size: 26px; font-weight: 620; letter-spacing: -0.01em; margin: 0; }
+
+  a.back {
+    font-size: 13px; color: var(--text-secondary); text-decoration: none;
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; background: var(--surface-1); white-space: nowrap;
+  }
+  a.back:hover { background: var(--hover); color: var(--text-primary); }
+
+  h2 {
+    font-size: 15px; font-weight: 640; margin: 34px 0 8px;
+    letter-spacing: -0.005em;
+  }
+  h2:first-of-type { margin-top: 0; }
+  p { margin: 0 0 12px; color: var(--text-secondary); }
+  p.lead { color: var(--text-primary); font-size: 16px; }
+  ul { margin: 0 0 12px; padding-left: 20px; color: var(--text-secondary); }
+  li { margin-bottom: 6px; }
+  li::marker { color: var(--muted); }
+  strong { color: var(--text-primary); font-weight: 600; }
+
+  hr { border: none; border-top: 1px solid var(--gridline); margin: 34px 0; }
+
+  .callout {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; margin: 0 0 12px;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .prompts { margin: 0 0 12px; padding-left: 20px; }
+  .prompts li { color: var(--text-primary); }
+
+  footer {
+    margin-top: 40px; padding-top: 16px;
+    border-top: 1px solid var(--gridline);
+    font-size: 12.5px; color: var(--muted);
+  }
+  footer a { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="top">
+    <h1>How to use the Wheel of Life</h1>
+    <a class="back" href="index.html">← Back to the wheel</a>
+  </header>
+
+  <p class="lead">The Wheel of Life is a way of seeing your whole life at once,
+  instead of the one part of it that happens to be loudest today. It takes about
+  ten minutes the first time.</p>
+
+  <h2>1. Make the categories yours</h2>
+  <p>The page opens with eight common life areas. Treat them as a draft. Rename
+  anything that doesn't fit your vocabulary, delete what doesn't apply, and add
+  what's missing.</p>
+  <ul>
+    <li>Click any name to edit it.</li>
+    <li><strong>+ Add area</strong> creates a new slice; the <strong>×</strong>
+      removes one.</li>
+    <li>Split a category when one label is hiding two different things. If
+      "Health" is really "sleep" and "training", and those are in very different
+      shape, they deserve separate slices.</li>
+    <li>Drag the handle at the left of a row to reorder. Slices sit on the wheel
+      in list order, so you can put related areas side by side.</li>
+  </ul>
+  <p>Somewhere between six and twelve areas usually works. Fewer and each slice
+  is too broad to act on; many more and the exercise turns into admin.</p>
+
+  <h2>2. Score each area as it is today</h2>
+  <p>Move each slider to how satisfied you are with that part of your life
+  <strong>right now</strong> — not how satisfied you think you ought to be, and
+  not where you're aiming to get to. 0 is the centre of the wheel, 100 is the
+  outer edge.</p>
+  <div class="callout">
+    <p>Go with your first instinct on each one. The number you land on in three
+    seconds is usually more honest than the one you argue yourself into over
+    three minutes.</p>
+  </div>
+  <p>A useful calibration: 50 is not "average", it's <em>genuinely mixed</em>.
+  Reserve the top of the range for areas you'd change nothing about.</p>
+
+  <h2>3. Write down why</h2>
+  <p>Open the note under any area with the chevron. A score on its own fades;
+  the sentence explaining it is what you'll actually want when you come back to
+  this.</p>
+  <p>You don't need to fill in all of them. The two or three that surprised you
+  are the ones worth a note.</p>
+
+  <h2>4. Read the shape, not the numbers</h2>
+  <p>Step back and look at the outline. A wheel that reaches evenly outward
+  rolls; one with a few long slices and a few stubs doesn't, however impressive
+  the long ones are.</p>
+  <p>Sit with these:</p>
+  <ul class="prompts">
+    <li>Which slice is furthest from where you'd want it?</li>
+    <li>Is any high score being paid for by a low one next to it?</li>
+    <li>If one area moved ten points, which would make the most difference to
+      the rest?</li>
+    <li>Which low score are you genuinely at peace with? Not everything has to
+      be high — a deliberate trade-off is not the same as neglect.</li>
+  </ul>
+  <p>Resist the urge to fix everything. One area, one concrete next step, is a
+  better outcome than eight resolutions.</p>
+
+  <h2>5. Save it, then come back</h2>
+  <p>Press <strong>Save snapshot</strong> to keep a dated copy. The real value
+  of this exercise shows up the second time you do it.</p>
+  <p>When you return — a month, a quarter, whenever — adjust the sliders to
+  today's reality and press <strong>Compare</strong> on the old snapshot. The
+  wheel draws a line across each slice showing where it stood then, and every
+  row gains a ▲ or ▼ against the old score. Movement you'd never have recalled
+  becomes obvious.</p>
+
+  <h2>Taking it into a session</h2>
+  <p><strong>Print</strong> opens a clean copy with every note expanded, which
+  saves as a PDF from the print dialog. <strong>Download PNG</strong> gives you
+  a dated image of just the wheel, which is easier to drop into a message or a
+  journal.</p>
+
+  <hr>
+
+  <h2>Where your answers live</h2>
+  <p>Nothing here is uploaded. There's no account, no server, and the page makes
+  no network requests — it works with the wifi switched off. Your scores, notes
+  and snapshots are stored by your browser, on the device you're using.</p>
+  <p>Two consequences worth knowing:</p>
+  <ul>
+    <li>Your wheel won't follow you to a different browser or computer.</li>
+    <li>Clearing your browser's site data erases it.</li>
+  </ul>
+  <p>If you intend to compare wheels months apart, use <strong>Export
+  backup</strong> to save everything to a single file you keep yourself.
+  <strong>Import</strong> loads it back.</p>
+
+  <h2>A note for coaches</h2>
+  <p>Everything is in one HTML file with no build step and no dependencies. Fork
+  it, edit the <code>DEFAULTS</code> list at the top of the script to your own
+  categories, and hand the file to clients. Because their answers never leave
+  their own machine, there's nothing for you to host or safeguard.</p>
+
+  <footer>
+    <p>The Wheel of Life is a long-established coaching exercise in general use.
+    This page is an original description of how to work with it, and this
+    implementation is open source under the MIT licence —
+    <a href="https://github.com/augers-co/interactive-wheel-of-life">source on
+    GitHub</a>.</p>
+  </footer>
+</div>
+</body>
+</html>

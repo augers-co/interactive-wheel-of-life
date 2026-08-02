@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wheel of Life</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --muted: #898781;
+    --gridline: #e1e0d9;
+    --border: rgba(11,11,11,0.10);
+    --track: #dedcd4;
+    --thumb: #8d8b84;
+    --hover: rgba(11,11,11,0.05);
+    --up: #006300;
+    --down: #c0392f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --muted: #898781;
+      --gridline: #2c2c2a;
+      --border: rgba(255,255,255,0.10);
+      --track: #3a3a37;
+      --thumb: #7d7b75;
+      --hover: rgba(255,255,255,0.06);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted: #898781;
+    --gridline: #2c2c2a;
+    --border: rgba(255,255,255,0.10);
+    --track: #3a3a37;
+    --thumb: #7d7b75;
+    --hover: rgba(255,255,255,0.06);
+    --up: #0ca30c;
+    --down: #e66767;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 820px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  header.top {
+    display: flex; flex-wrap: wrap; align-items: flex-end;
+    gap: 16px; margin-bottom: 28px;
+  }
+  .titles { flex: 1 1 320px; min-width: 260px; }
+  h1 {
+    font-size: 26px; font-weight: 620; letter-spacing: -0.01em;
+    margin: 0 0 4px;
+  }
+  .sub { color: var(--text-secondary); font-size: 13.5px; margin: 0; max-width: 62ch; }
+  .sub .howto { color: var(--muted); margin-left: 4px; }
+  .sub .howto:hover { color: var(--text-primary); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    font: inherit; font-size: 13px; line-height: 1;
+    padding: 9px 13px; border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--text-primary);
+    cursor: pointer;
+  }
+  button:hover { background: var(--hover); }
+  button:active { transform: translateY(0.5px); }
+  button.primary {
+    border-color: transparent;
+    background: var(--text-primary); color: var(--surface-1);
+  }
+  button.primary:hover { background: var(--text-primary); filter: brightness(1.25); }
+  button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--text-secondary); outline-offset: 2px;
+  }
+
+  /* stacked: wheel on top, areas beneath — reads as one document, prints as one */
+  .layout { display: flex; flex-direction: column; gap: 26px; }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  #wheel { display: block; width: 100%; max-width: 660px; height: auto; margin: 0 auto; }
+
+  /* ---- Areas panel: deliberately recessive; the wheel is the subject ---- */
+  .panel { padding-top: 4px; }
+
+  .panel-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 10px; margin: 0 2px 6px;
+  }
+  .panel-head h2 {
+    font-size: 11px; font-weight: 600; margin: 0;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  }
+  .linkbtn {
+    border: none; background: transparent; padding: 2px 4px;
+    font-size: 11.5px; color: var(--muted); border-radius: 5px;
+  }
+  .linkbtn:hover { background: var(--hover); color: var(--text-secondary); }
+
+  .rows { display: flex; flex-direction: column; }
+  .row {
+    display: grid;
+    grid-template-columns: 15px 9px minmax(0, 1fr) minmax(62px, 96px) 30px 20px 20px;
+    align-items: center;
+    gap: 0 7px;
+    padding: 2px 4px;
+    border-radius: 6px;
+  }
+  .row + .row { border-top: 1px solid var(--gridline); }
+  .row.active { background: var(--hover); }
+
+  .dot { width: 9px; height: 9px; border-radius: 50%; }
+
+  /* drag handle — invisible until you go looking for it */
+  .grip {
+    width: 15px; height: 20px; padding: 0;
+    border: none; background: transparent; color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: grab; opacity: 0; transition: opacity .12s ease;
+    -webkit-user-drag: element;
+  }
+  .row:hover .grip, .grip:focus-visible { opacity: 1; }
+  .grip svg {
+    width: 11px; height: 11px; fill: none; stroke: currentColor;
+    stroke-width: 1.6; stroke-linecap: round;
+  }
+  .row.dragging { opacity: 0.45; background: var(--hover); cursor: grabbing; }
+  .rows.dragging-active .row { transition: none; }
+
+  .row .name {
+    font: inherit; font-size: 13px; color: var(--text-secondary);
+    background: transparent; border: 1px solid transparent;
+    border-radius: 5px; padding: 4px 5px; min-width: 0; width: 100%;
+    text-overflow: ellipsis;
+  }
+  .row.active .name { color: var(--text-primary); }
+  .row .name:hover { border-color: var(--border); }
+  .row .name:focus { border-color: var(--border); background: var(--surface-1); outline: none; }
+
+  .row .value {
+    font: inherit; font-size: 12px; font-variant-numeric: tabular-nums;
+    width: 30px; text-align: right; color: var(--muted);
+    background: transparent; border: 1px solid transparent;
+    border-radius: 5px; padding: 3px 2px;
+    -moz-appearance: textfield; appearance: textfield;
+  }
+  .row .value::-webkit-outer-spin-button,
+  .row .value::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .row .value:hover { border-color: var(--border); }
+  .row .value:focus { border-color: var(--border); background: var(--surface-1); outline: none; color: var(--text-primary); }
+
+  .iconbtn {
+    position: relative;
+    width: 20px; height: 20px; padding: 0;
+    border-radius: 5px; border-color: transparent; background: transparent;
+    color: var(--muted); font-size: 13px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .iconbtn:hover { background: var(--hover); color: var(--text-primary); }
+  .iconbtn svg {
+    width: 11px; height: 11px; fill: none; stroke: currentColor;
+    stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round;
+    transition: transform .15s ease;
+  }
+  .note-btn.has-note { color: var(--text-secondary); }
+  .note-btn.has-note::after {
+    content: ""; position: absolute; top: 2px; right: 1px;
+    width: 4px; height: 4px; border-radius: 50%; background: currentColor;
+  }
+  .note-btn.open svg { transform: rotate(180deg); }
+
+  /* grey, thin, quiet sliders */
+  .row input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; margin: 0; height: 16px; background: transparent; cursor: pointer;
+    /* if an engine ignores the track/thumb pseudo-elements below, it still
+       falls back to a grey native slider rather than an unstyled box */
+    accent-color: var(--thumb);
+  }
+  .row input[type="range"]::-webkit-slider-runnable-track {
+    height: 3px; border-radius: 2px; background: var(--track);
+  }
+  .row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 11px; height: 11px; margin-top: -4px;
+    border-radius: 50%; background: var(--thumb); border: none;
+  }
+  .row input[type="range"]::-moz-range-track {
+    height: 3px; border-radius: 2px; background: var(--track);
+  }
+  .row input[type="range"]::-moz-range-thumb {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: var(--thumb); border: none;
+  }
+  .row:hover input[type="range"]::-webkit-slider-thumb,
+  .row.active input[type="range"]::-webkit-slider-thumb { background: var(--text-secondary); }
+  .row:hover input[type="range"]::-moz-range-thumb,
+  .row.active input[type="range"]::-moz-range-thumb { background: var(--text-secondary); }
+
+  /* collapsible per-area note */
+  .note-wrap { grid-column: 3 / -1; overflow: hidden; }
+  .note-wrap[hidden] { display: none; }
+  .note-field {
+    font: inherit; font-size: 12.5px; line-height: 1.45;
+    width: 100%; margin: 0 0 7px; padding: 7px 8px;
+    color: var(--text-secondary); background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 7px;
+    resize: vertical; min-height: 52px;
+  }
+  .note-field::placeholder { color: var(--muted); }
+  .note-field:focus { outline: none; border-color: var(--text-secondary); color: var(--text-primary); }
+
+  .add-wrap {
+    margin-top: 9px; display: flex; align-items: center;
+    justify-content: space-between; gap: 10px;
+  }
+  .add-wrap button { font-size: 12px; padding: 6px 10px; }
+  .count { font-size: 11.5px; color: var(--muted); }
+
+  /* ---- history ---- */
+  .history { margin-top: 26px; }
+  .history[hidden] { display: none; }
+  .snap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center; gap: 0 6px;
+    padding: 4px 4px 4px 6px; border-radius: 6px;
+    font-size: 12.5px; color: var(--text-secondary);
+  }
+  .snap + .snap { border-top: 1px solid var(--gridline); }
+  .snap:hover { background: var(--hover); }
+  .snap.current { background: var(--hover); }
+  .snap .when { font-weight: 500; }
+  .snap .meta { color: var(--muted); font-weight: 400; margin-left: 8px; font-size: 11.5px; }
+  .snap .linkbtn { font-size: 11.5px; padding: 3px 6px; }
+  .snap.current .linkbtn.cmp { color: var(--text-primary); font-weight: 600; }
+
+  .delta {
+    display: none; font-size: 11px; text-align: right;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .rows.comparing .row {
+    grid-template-columns: 15px 9px minmax(0, 1fr) minmax(62px, 96px) 30px 46px 20px 20px;
+  }
+  .rows.comparing .delta { display: block; }
+  .delta.up { color: var(--up); }
+  .delta.down { color: var(--down); }
+  .delta.flat { color: var(--muted); }
+
+  .cmp-bar {
+    display: none; align-items: center; gap: 8px;
+    margin: 0 2px 8px; font-size: 12px; color: var(--text-secondary);
+  }
+  .cmp-bar.on { display: flex; }
+
+  .footnote { margin-top: 24px; font-size: 12px; color: var(--muted); max-width: 70ch; }
+
+  /* Print / save-as-PDF: chrome off, every note expanded, nothing split mid-row */
+  @media print {
+    @page { margin: 14mm; }
+    .actions, .add-wrap, .row .iconbtn, .footnote,
+    .history, .cmp-bar .linkbtn { display: none !important; }
+    body { background: #fff; }
+    .page { max-width: none; padding: 0; }
+    .layout { gap: 18px; }
+    .card { border-color: #ddd; padding: 0; }
+    #wheel { max-width: 520px; }
+    .panel { break-before: auto; }
+    .row { break-inside: avoid; page-break-inside: avoid; }
+    .note-wrap[hidden] { display: block !important; }
+    .note-field {
+      border-color: #e5e5e5; min-height: 0; resize: none;
+      background: transparent; color: #333;
+    }
+    .note-field:placeholder-shown { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="top">
+    <div class="titles">
+      <h1>Wheel of Life</h1>
+      <p class="sub">Rate each area from 0 to 100. <a class="howto" href="instructions.html">How to use this</a></p>
+    </div>
+    <div class="actions">
+      <button id="btn-theme" type="button" title="Switch light / dark">Theme</button>
+      <button id="btn-reset" type="button">Reset</button>
+      <button id="btn-print" type="button">Print</button>
+      <button id="btn-png" type="button">Download PNG</button>
+      <button id="btn-snap" type="button" class="primary">Save snapshot</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="card">
+      <svg id="wheel" viewBox="0 0 720 590" role="img" aria-labelledby="wheel-title wheel-desc">
+        <title id="wheel-title">Wheel of Life</title>
+        <desc id="wheel-desc">A radial chart. Each wedge is one life area; how far it reaches from the centre is your score out of 100.</desc>
+      </svg>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Areas</h2>
+        <button id="btn-notes" class="linkbtn" type="button">Show all notes</button>
+      </div>
+      <div class="cmp-bar" id="cmp-bar">
+        <span id="cmp-label"></span>
+        <button id="btn-cmp-off" class="linkbtn" type="button">Stop comparing</button>
+      </div>
+      <div class="rows" id="rows"></div>
+      <div class="add-wrap">
+        <button id="btn-add" type="button">+ Add area</button>
+        <span class="count" id="count"></span>
+      </div>
+    </section>
+
+    <section class="history" id="history" hidden>
+      <div class="panel-head">
+        <h2>History</h2>
+        <span>
+          <button id="btn-export" class="linkbtn" type="button">Export backup</button>
+          <button id="btn-import" class="linkbtn" type="button">Import</button>
+        </span>
+      </div>
+      <div id="snaps"></div>
+      <input type="file" id="file-import" accept="application/json,.json" hidden>
+    </section>
+  </div>
+
+  <p class="footnote">Scores, notes and snapshots save to this browser's local storage on this device. Nothing is uploaded. Clearing site data would erase them, so use Export backup if you are counting on the history months from now. Printing includes notes; the PNG is the wheel only.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- data ---------- */
+
+  /* The eight categories from the classic coaching worksheet, clockwise from
+     the top. They are a starting point, not a prescription — rename, add,
+     remove and reorder them until the wheel describes your life. */
+  var DEFAULTS = [
+    "Physical Health",
+    "Emotional & Spiritual Health",
+    "Recreation & Leisure",
+    "Career & Educational Aspirations",
+    "Money & Personal Finances",
+    "Personal Development",
+    "Social & Family Relationships",
+    "Marriage / Partner"
+  ];
+
+  var STORE = "wheel-of-life-v1";
+  var MIN_FIELDS = 3, MAX_FIELDS = 20;
+  var HUE_START = 250;
+
+  function freshDefaults() {
+    return DEFAULTS.map(function (n, i) {
+      return {
+        name: n,
+        value: 50,
+        note: "",
+        hue: (HUE_START + i * (360 / DEFAULTS.length)) % 360
+      };
+    });
+  }
+
+  var SNAPS = STORE + ":snaps";
+
+  var items = load() || freshDefaults();
+  var snaps = loadSnaps();
+  var compareId = null;
+  var activeIndex = -1;
+  var openNotes = {};
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORE);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || !parsed.length) return null;
+      var n = parsed.length;
+      return parsed.map(function (d, i) {
+        return {
+          name: String(d.name || "Untitled"),
+          value: clamp(Math.round(+d.value || 0)),
+          note: typeof d.note === "string" ? d.note : "",
+          /* older saves predate stored hues — space them out on the way in */
+          hue: isFinite(d.hue) ? ((+d.hue % 360) + 360) % 360 : (HUE_START + i * (360 / n)) % 360
+        };
+      });
+    } catch (e) { return null; }
+  }
+
+  /* A new area takes the widest unused arc of the colour wheel, so adding or
+     removing one never repaints the areas already on the chart. */
+  function nextHue() {
+    var hs = items.map(function (d) { return d.hue; }).sort(function (a, b) { return a - b; });
+    if (!hs.length) return HUE_START;
+    if (hs.length === 1) return (hs[0] + 180) % 360;
+    var best = HUE_START, bestGap = -1;
+    for (var i = 0; i < hs.length; i++) {
+      var a = hs[i];
+      var b = (i + 1 < hs.length) ? hs[i + 1] : hs[0] + 360;
+      var gap = b - a;
+      if (gap > bestGap) { bestGap = gap; best = (a + gap / 2) % 360; }
+    }
+    return best;
+  }
+  function save() {
+    try { localStorage.setItem(STORE, JSON.stringify(items)); } catch (e) {}
+  }
+  function clamp(v) { return Math.max(0, Math.min(100, v)); }
+
+  /* ---------- snapshots ---------- */
+
+  function loadSnaps() {
+    try {
+      var raw = localStorage.getItem(SNAPS);
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) { return []; }
+  }
+  function saveSnaps() {
+    try { localStorage.setItem(SNAPS, JSON.stringify(snaps)); } catch (e) {}
+  }
+
+  function takeSnapshot() {
+    snaps.unshift({
+      id: "s" + new Date().getTime() + Math.random().toString(36).slice(2, 6),
+      at: new Date().toISOString(),
+      items: items.map(function (d) {
+        return { name: d.name, value: d.value, note: d.note || "", hue: d.hue };
+      })
+    });
+    saveSnaps();
+  }
+
+  function snapById(id) {
+    for (var i = 0; i < snaps.length; i++) if (snaps[i].id === id) return snaps[i];
+    return null;
+  }
+
+  /* Areas are matched by name, so renaming one breaks its history — that is the
+     honest behaviour: a renamed area usually means a different thing. */
+  function baselineMap() {
+    var s = compareId ? snapById(compareId) : null;
+    if (!s) return null;
+    var m = {};
+    s.items.forEach(function (d) { m[String(d.name).trim().toLowerCase()] = d.value; });
+    return m;
+  }
+  function baselineFor(base, item) {
+    if (!base) return null;
+    var v = base[String(item.name).trim().toLowerCase()];
+    return (typeof v === "number") ? v : null;
+  }
+
+  function fmtDate(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? "—" : d.toLocaleDateString(undefined, {
+      year: "numeric", month: "short", day: "numeric"
+    });
+  }
+  function avgOf(list) {
+    if (!list.length) return 0;
+    return Math.round(list.reduce(function (s, d) { return s + d.value; }, 0) / list.length);
+  }
+
+  /* ---------- theme ---------- */
+
+  var THEMES = {
+    light: {
+      surface: "#fcfcfb", grid: "#e1e0d9", track: "#f0efec",
+      L: 0.615, C: 0.145,
+      ink: "#0b0b0b", secondary: "#52514e", muted: "#898781"
+    },
+    dark: {
+      surface: "#1a1a19", grid: "#2c2c2a", track: "#232322",
+      L: 0.660, C: 0.145,
+      ink: "#ffffff", secondary: "#c3c2b7", muted: "#898781"
+    }
+  };
+
+  /* OKLCH -> sRGB hex. Even lightness and chroma across every hue, so no wedge
+     shouts louder than its neighbours just because of the colour it landed on. */
+  function oklchToHex(L, C, hueDeg) {
+    for (var c = C; c >= 0; c -= 0.004) {
+      var rgb = oklabToLinear(L, c, hueDeg);
+      if (rgb[0] >= -0.001 && rgb[0] <= 1.001 &&
+          rgb[1] >= -0.001 && rgb[1] <= 1.001 &&
+          rgb[2] >= -0.001 && rgb[2] <= 1.001) {
+        return "#" + rgb.map(toHexPart).join("");
+      }
+    }
+    return "#808080";
+  }
+
+  function oklabToLinear(L, C, hueDeg) {
+    var h = hueDeg * Math.PI / 180;
+    var a = C * Math.cos(h), b = C * Math.sin(h);
+    var l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+    var m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+    var s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+    var l = l_ * l_ * l_, m = m_ * m_ * m_, s = s_ * s_ * s_;
+    return [
+       4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+      -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+      -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
+    ];
+  }
+
+  function toHexPart(v) {
+    v = Math.max(0, Math.min(1, v));
+    var s = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+    var i = Math.round(Math.max(0, Math.min(1, s)) * 255);
+    return (i < 16 ? "0" : "") + i.toString(16);
+  }
+
+  function colorFor(item) {
+    var t = theme();
+    return oklchToHex(t.L, t.C, item.hue);
+  }
+
+  function mode() {
+    var stamp = document.documentElement.getAttribute("data-theme");
+    if (stamp === "dark" || stamp === "light") return stamp;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function theme() { return THEMES[mode()]; }
+
+  /* ---------- geometry ---------- */
+
+  var CX = 360, CY = 290, R_OUT = 200, R_IN = 0;
+  var LABEL_R = R_OUT + 15;
+  var VB_W = 720, VB_H = 590;
+
+  function polar(r, deg) {
+    var rad = (deg - 90) * Math.PI / 180;
+    return [CX + r * Math.cos(rad), CY + r * Math.sin(rad)];
+  }
+  function n2(x) { return Math.round(x * 100) / 100; }
+
+  function sector(a0, a1, r0, r1) {
+    if (r1 - r0 < 0.2) return "";
+    var large = (a1 - a0) > 180 ? 1 : 0;
+    var p1 = polar(r1, a0), p2 = polar(r1, a1);
+    var head = "M" + n2(p1[0]) + " " + n2(p1[1]) +
+               "A" + r1 + " " + r1 + " 0 " + large + " 1 " + n2(p2[0]) + " " + n2(p2[1]);
+    /* r0 = 0 is a plain pie wedge — a zero-radius arc back to the hub is not */
+    if (r0 <= 0) return head + "L" + CX + " " + CY + "Z";
+    var p3 = polar(r0, a1), p4 = polar(r0, a0);
+    return head +
+           "L" + n2(p3[0]) + " " + n2(p3[1]) +
+           "A" + r0 + " " + r0 + " 0 " + large + " 0 " + n2(p4[0]) + " " + n2(p4[1]) + "Z";
+  }
+
+  function wrap(text, max, maxLines) {
+    var words = String(text).trim().split(/\s+/), lines = [], cur = "";
+    for (var i = 0; i < words.length; i++) {
+      var next = cur ? cur + " " + words[i] : words[i];
+      if (next.length > max && cur) { lines.push(cur); cur = words[i]; }
+      else { cur = next; }
+    }
+    if (cur) lines.push(cur);
+    if (lines.length > maxLines) {
+      lines = lines.slice(0, maxLines);
+      lines[maxLines - 1] = lines[maxLines - 1].replace(/.{0,1}$/, "…");
+    }
+    return lines.length ? lines : [""];
+  }
+
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs) {
+    var node = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) if (attrs[k] !== null && attrs[k] !== undefined) node.setAttribute(k, attrs[k]);
+    return node;
+  }
+
+  /* ---------- render the wheel ---------- */
+
+  var svg = document.getElementById("wheel");
+
+  function drawWheel() {
+    var t = theme();
+    var n = items.length;
+    var step = 360 / n;
+    var pad = Math.min(1.4, step / 9);
+
+    while (svg.childNodes.length > 2) svg.removeChild(svg.lastChild);
+
+    var style = el("style");
+    style.textContent =
+      ".wedge{cursor:pointer;transition:opacity .12s ease}" +
+      ".wedge.dim{opacity:.3}" +
+      ".lbl{transition:opacity .12s ease}" +
+      ".lbl.dim{opacity:.35}";
+    svg.appendChild(style);
+
+    var gTrack = el("g"), gFill = el("g"), gLabels = el("g");
+
+    /* unfilled remainder — the gap between where you are and 100 */
+    for (var i = 0; i < n; i++) {
+      var a0 = i * step + pad / 2, a1 = (i + 1) * step - pad / 2;
+      gTrack.appendChild(el("path", { d: sector(a0, a1, R_IN, R_OUT), fill: t.track }));
+    }
+
+    /* filled wedges */
+    for (var j = 0; j < n; j++) {
+      var b0 = j * step + pad / 2, b1 = (j + 1) * step - pad / 2;
+      var r = R_IN + (R_OUT - R_IN) * (items[j].value / 100);
+      var path = el("path", {
+        d: sector(b0, b1, R_IN, r),
+        fill: colorFor(items[j]),
+        class: "wedge",
+        "data-i": j
+      });
+      var tip = el("title");
+      tip.textContent = items[j].name + " — " + items[j].value + "%";
+      path.appendChild(tip);
+      gFill.appendChild(path);
+    }
+
+    /* where each area stood in the snapshot being compared against */
+    var base = baselineMap();
+    if (base) {
+      for (var q = 0; q < n; q++) {
+        var bv = baselineFor(base, items[q]);
+        if (bv === null) continue;
+        var rb = R_IN + (R_OUT - R_IN) * (bv / 100);
+        if (rb < 2) continue;
+        var c0 = q * step + pad / 2, c1 = (q + 1) * step - pad / 2;
+        var q1 = polar(rb, c0), q2 = polar(rb, c1);
+        gLabels.appendChild(el("path", {
+          d: "M" + n2(q1[0]) + " " + n2(q1[1]) +
+             "A" + rb + " " + rb + " 0 " + ((c1 - c0) > 180 ? 1 : 0) + " 1 " +
+             n2(q2[0]) + " " + n2(q2[1]),
+          fill: "none", stroke: t.ink, "stroke-width": 1.75,
+          "stroke-linecap": "round", opacity: 0.55
+        }));
+      }
+    }
+
+    /* outside labels: name only */
+    for (var k = 0; k < n; k++) {
+      var mid = k * step + step / 2;
+      var pos = polar(LABEL_R, mid);
+      var vx = Math.sin(mid * Math.PI / 180);
+      var vy = -Math.cos(mid * Math.PI / 180);
+
+      var anchor = Math.abs(vx) < 0.1 ? "middle" : (vx > 0 ? "start" : "end");
+      var lines = wrap(items[k].name, 16, 3);
+      var LH = 14;
+      var H = lines.length * LH;
+      var y0 = pos[1] + (vy - 1) / 2 * H + 10.5;
+
+      var g = el("g", { class: "lbl", "data-i": k });
+      for (var li = 0; li < lines.length; li++) {
+        var tn = el("text", {
+          x: n2(pos[0]), y: n2(y0 + li * LH), "text-anchor": anchor,
+          "font-size": 12.5, "font-weight": 500,
+          "font-family": "system-ui, -apple-system, 'Segoe UI', sans-serif", fill: t.ink
+        });
+        tn.textContent = lines[li];
+        g.appendChild(tn);
+      }
+      gLabels.appendChild(g);
+    }
+
+    svg.appendChild(gTrack);
+    svg.appendChild(gFill);
+    svg.appendChild(gLabels);
+
+    applyHighlight();
+  }
+
+  function applyHighlight() {
+    var wedges = svg.querySelectorAll(".wedge");
+    var labels = svg.querySelectorAll(".lbl");
+    for (var i = 0; i < wedges.length; i++) {
+      wedges[i].classList.toggle("dim", activeIndex >= 0 && +wedges[i].getAttribute("data-i") !== activeIndex);
+    }
+    for (var j = 0; j < labels.length; j++) {
+      labels[j].classList.toggle("dim", activeIndex >= 0 && +labels[j].getAttribute("data-i") !== activeIndex);
+    }
+    var rows = document.querySelectorAll(".row");
+    for (var k = 0; k < rows.length; k++) {
+      rows[k].classList.toggle("active", k === activeIndex);
+    }
+  }
+
+  function setActive(i) {
+    if (activeIndex === i) return;
+    activeIndex = i;
+    applyHighlight();
+  }
+
+  svg.addEventListener("mouseover", function (e) {
+    var hit = e.target.closest ? e.target.closest(".wedge, .lbl") : null;
+    if (hit) setActive(+hit.getAttribute("data-i"));
+  });
+  svg.addEventListener("mouseleave", function () { setActive(-1); });
+  svg.addEventListener("click", function (e) {
+    var hit = e.target.closest ? e.target.closest(".wedge, .lbl") : null;
+    if (!hit) return;
+    var row = document.querySelectorAll(".row")[+hit.getAttribute("data-i")];
+    if (row) row.querySelector('input[type="range"]').focus();
+  });
+
+  /* ---------- render the controls ---------- */
+
+  var rowsEl = document.getElementById("rows");
+  var dragging = null;
+
+  /* Reordering the list reorders the wheel — position on the wheel is the
+     one thing the list controls that the sliders do not. */
+  function moveItem(from, to) {
+    if (to < 0 || to >= items.length || from === to) return;
+    items.splice(to, 0, items.splice(from, 1)[0]);
+    var notes = {};
+    Object.keys(openNotes).forEach(function (k) {
+      var idx = +k;
+      if (!openNotes[idx]) return;
+      var moved = idx === from ? to
+        : (from < idx && idx <= to) ? idx - 1
+        : (to <= idx && idx < from) ? idx + 1
+        : idx;
+      notes[moved] = true;
+    });
+    openNotes = notes;
+    activeIndex = -1;
+    save(); render();
+    var grips = rowsEl.querySelectorAll(".grip");
+    if (grips[to]) grips[to].focus();
+  }
+
+  /* after a drag, read the order back off the DOM and rebuild the array */
+  function commitOrder() {
+    var order = [];
+    rowsEl.querySelectorAll(".row").forEach(function (r) { order.push(+r.dataset.i); });
+    var changed = order.some(function (v, idx) { return v !== idx; });
+    if (!changed) return;
+    items = order.map(function (idx) { return items[idx]; });
+    var notes = {};
+    order.forEach(function (oldIdx, newIdx) { if (openNotes[oldIdx]) notes[newIdx] = true; });
+    openNotes = notes;
+    activeIndex = -1;
+    save(); render();
+  }
+
+  function rowAfterPointer(y) {
+    var candidates = [].slice.call(rowsEl.querySelectorAll(".row:not(.dragging)"));
+    var closest = null, closestOffset = -Infinity;
+    candidates.forEach(function (r) {
+      var box = r.getBoundingClientRect();
+      var offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closestOffset) { closestOffset = offset; closest = r; }
+    });
+    return closest;
+  }
+
+  rowsEl.addEventListener("dragover", function (e) {
+    if (!dragging) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    var after = rowAfterPointer(e.clientY);
+    if (after === dragging) return;
+    if (after) rowsEl.insertBefore(dragging, after);
+    else rowsEl.appendChild(dragging);
+  });
+  rowsEl.addEventListener("drop", function (e) { e.preventDefault(); });
+
+  function drawRows() {
+    rowsEl.textContent = "";
+    var base = baselineMap();
+    rowsEl.classList.toggle("comparing", !!base);
+    items.forEach(function (item, i) {
+      var row = document.createElement("div");
+      row.className = "row";
+
+      row.dataset.i = i;
+
+      var grip = document.createElement("button");
+      grip.type = "button";
+      grip.className = "grip";
+      grip.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4h8M2 8h8"/></svg>';
+      grip.title = "Drag to reorder — or focus and use the arrow keys";
+      grip.setAttribute("aria-label", "Reorder " + item.name);
+      /* The grip carries draggable, not the row: WebKit decides draggability at
+         mousedown, so flipping it in a mousedown handler is already too late.
+         setDragImage puts the whole row under the cursor anyway. */
+      grip.draggable = true;
+      grip.addEventListener("dragstart", function (e) {
+        dragging = row;
+        rowsEl.classList.add("dragging-active");
+        row.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        /* Firefox refuses to start a drag with no payload */
+        try { e.dataTransfer.setData("text/plain", String(i)); } catch (err) {}
+        if (e.dataTransfer.setDragImage) {
+          e.dataTransfer.setDragImage(row, 24, row.offsetHeight / 2);
+        }
+      });
+      grip.addEventListener("dragend", function () {
+        row.classList.remove("dragging");
+        rowsEl.classList.remove("dragging-active");
+        dragging = null;
+        commitOrder();
+      });
+      grip.addEventListener("keydown", function (e) {
+        var dir = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+        if (!dir) return;
+        e.preventDefault();
+        moveItem(i, i + dir);
+      });
+
+      var dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = colorFor(item);
+
+      var name = document.createElement("input");
+      name.type = "text";
+      name.className = "name";
+      name.value = item.name;
+      name.setAttribute("aria-label", "Name of area " + (i + 1));
+      name.addEventListener("input", function () {
+        items[i].name = name.value;
+        save(); drawWheel();
+      });
+
+      var value = document.createElement("input");
+      value.type = "number";
+      value.className = "value";
+      value.min = 0; value.max = 100; value.step = 1;
+      value.value = item.value;
+      value.setAttribute("aria-label", "Score for " + item.name);
+
+      var slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = 0; slider.max = 100; slider.step = 1;
+      slider.value = item.value;
+      slider.setAttribute("aria-label", "Score for " + item.name);
+
+      var delta = document.createElement("span");
+      delta.className = "delta";
+
+      function paintDelta() {
+        var b = baselineFor(base, items[i]);
+        if (b === null) { delta.textContent = ""; delta.className = "delta"; return; }
+        var d = items[i].value - b;
+        delta.className = "delta " + (d > 0 ? "up" : d < 0 ? "down" : "flat");
+        delta.textContent = d > 0 ? "▲ " + d : d < 0 ? "▼ " + Math.abs(d) : "—";
+        delta.title = "Was " + b;
+      }
+      paintDelta();
+
+      function commit(v) {
+        items[i].value = clamp(Math.round(v || 0));
+        slider.value = items[i].value;
+        value.value = items[i].value;
+        paintDelta();
+        save(); drawWheel();
+      }
+      slider.addEventListener("input", function () { commit(+slider.value); });
+      value.addEventListener("input", function () {
+        if (value.value === "") return;
+        commit(+value.value);
+      });
+      value.addEventListener("blur", function () { commit(+value.value); });
+
+      /* collapsible note */
+      var noteWrap = document.createElement("div");
+      noteWrap.className = "note-wrap";
+      noteWrap.hidden = !openNotes[i];
+
+      var note = document.createElement("textarea");
+      note.className = "note-field";
+      note.rows = 3;
+      note.value = item.note || "";
+      note.placeholder = "Notes on " + (item.name || "this area") + "…";
+      note.setAttribute("aria-label", "Notes on " + item.name);
+      note.addEventListener("input", function () {
+        items[i].note = note.value;
+        noteBtn.classList.toggle("has-note", !!note.value.trim());
+        autosize(note);
+        save();
+      });
+      noteWrap.appendChild(note);
+      if (openNotes[i]) requestAnimationFrame(function () { autosize(note); });
+
+      var noteBtn = document.createElement("button");
+      noteBtn.type = "button";
+      noteBtn.className = "iconbtn note-btn" +
+        (item.note && item.note.trim() ? " has-note" : "") +
+        (openNotes[i] ? " open" : "");
+      noteBtn.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg>';
+      noteBtn.title = "Notes";
+      noteBtn.setAttribute("aria-label", "Notes on " + item.name);
+      noteBtn.setAttribute("aria-expanded", openNotes[i] ? "true" : "false");
+      noteBtn.addEventListener("click", function () {
+        openNotes[i] = !openNotes[i];
+        noteWrap.hidden = !openNotes[i];
+        noteBtn.classList.toggle("open", !!openNotes[i]);
+        noteBtn.setAttribute("aria-expanded", openNotes[i] ? "true" : "false");
+        if (openNotes[i]) { autosize(note); note.focus(); }
+        syncNotesButton();
+      });
+
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "iconbtn remove";
+      remove.innerHTML = "&times;";
+      remove.title = "Remove this area";
+      remove.setAttribute("aria-label", "Remove " + item.name);
+      remove.addEventListener("click", function () {
+        if (items.length <= MIN_FIELDS) return;
+        items.splice(i, 1);
+        openNotes = {};
+        activeIndex = -1;
+        save(); render();
+      });
+
+      row.addEventListener("mouseenter", function () { setActive(i); });
+      row.addEventListener("mouseleave", function () {
+        if (!row.contains(document.activeElement)) setActive(-1);
+      });
+      row.addEventListener("focusin", function () { setActive(i); });
+      row.addEventListener("focusout", function () {
+        /* let focus land somewhere first, then drop the highlight if it left */
+        setTimeout(function () {
+          if (!row.contains(document.activeElement) && !row.matches(":hover")) setActive(-1);
+        }, 0);
+      });
+
+      row.appendChild(grip);
+      row.appendChild(dot);
+      row.appendChild(name);
+      row.appendChild(slider);
+      row.appendChild(value);
+      row.appendChild(delta);
+      row.appendChild(noteBtn);
+      row.appendChild(remove);
+      row.appendChild(noteWrap);
+      rowsEl.appendChild(row);
+    });
+
+    var addBtn = document.getElementById("btn-add");
+    addBtn.disabled = items.length >= MAX_FIELDS;
+    document.getElementById("count").textContent =
+      items.length + " area" + (items.length === 1 ? "" : "s") +
+      (items.length <= MIN_FIELDS ? " · minimum " + MIN_FIELDS : "") +
+      (items.length >= MAX_FIELDS ? " · maximum " + MAX_FIELDS : "");
+    var removeBtns = rowsEl.querySelectorAll(".remove");
+    for (var i = 0; i < removeBtns.length; i++) {
+      removeBtns[i].disabled = items.length <= MIN_FIELDS;
+      removeBtns[i].style.visibility = items.length <= MIN_FIELDS ? "hidden" : "visible";
+    }
+    syncNotesButton();
+  }
+
+  /* a textarea scrolls rather than grows, which would clip notes in a PDF */
+  function autosize(ta) {
+    ta.style.height = "auto";
+    ta.style.height = (ta.scrollHeight + 2) + "px";
+  }
+
+  function syncNotesButton() {
+    var allOpen = items.every(function (_, i) { return openNotes[i]; });
+    document.getElementById("btn-notes").textContent =
+      allOpen ? "Hide all notes" : "Show all notes";
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function drawHistory() {
+    var wrap = document.getElementById("history");
+    var list = document.getElementById("snaps");
+    wrap.hidden = snaps.length === 0;
+    list.textContent = "";
+
+    snaps.forEach(function (s) {
+      var el2 = document.createElement("div");
+      el2.className = "snap" + (s.id === compareId ? " current" : "");
+
+      var when = document.createElement("span");
+      when.className = "when";
+      when.textContent = fmtDate(s.at);
+      var meta = document.createElement("span");
+      meta.className = "meta";
+      meta.textContent = s.items.length + (s.items.length === 1 ? " area · avg " : " areas · avg ") +
+        avgOf(s.items);
+      when.appendChild(meta);
+
+      var cmp = document.createElement("button");
+      cmp.type = "button";
+      cmp.className = "linkbtn cmp";
+      cmp.textContent = s.id === compareId ? "Comparing" : "Compare";
+      cmp.addEventListener("click", function () {
+        compareId = (compareId === s.id) ? null : s.id;
+        renderAll();
+      });
+
+      var restore = document.createElement("button");
+      restore.type = "button";
+      restore.className = "linkbtn";
+      restore.textContent = "Restore";
+      restore.addEventListener("click", function () {
+        if (!confirm("Replace the current wheel with the " + fmtDate(s.at) +
+                     " snapshot? Your current scores and notes will be overwritten.")) return;
+        items = s.items.map(function (d) {
+          return { name: d.name, value: clamp(d.value), note: d.note || "", hue: d.hue };
+        });
+        compareId = null; openNotes = {}; activeIndex = -1;
+        save(); renderAll();
+      });
+
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "linkbtn";
+      del.textContent = "Delete";
+      del.addEventListener("click", function () {
+        if (!confirm("Delete the " + fmtDate(s.at) + " snapshot?")) return;
+        snaps = snaps.filter(function (x) { return x.id !== s.id; });
+        if (compareId === s.id) compareId = null;
+        saveSnaps(); renderAll();
+      });
+
+      el2.appendChild(when);
+      el2.appendChild(cmp);
+      el2.appendChild(restore);
+      el2.appendChild(del);
+      list.appendChild(el2);
+    });
+
+    var bar = document.getElementById("cmp-bar");
+    var s2 = compareId ? snapById(compareId) : null;
+    bar.classList.toggle("on", !!s2);
+    if (s2) {
+      document.getElementById("cmp-label").textContent =
+        "Change since " + fmtDate(s2.at) + ". The line across each slice is where it stood then.";
+    }
+  }
+
+  function render() { drawRows(); drawWheel(); }
+  function renderAll() { render(); drawHistory(); }
+
+  /* ---------- actions ---------- */
+
+  document.getElementById("btn-add").addEventListener("click", function () {
+    if (items.length >= MAX_FIELDS) return;
+    items.push({ name: "New area", value: 50, note: "", hue: nextHue() });
+    save(); render();
+    var rows = document.querySelectorAll(".row");
+    var last = rows[rows.length - 1].querySelector(".name");
+    last.focus(); last.select();
+  });
+
+  var snapBtn = document.getElementById("btn-snap");
+  snapBtn.addEventListener("click", function () {
+    takeSnapshot();
+    drawHistory();
+    snapBtn.textContent = "Saved ✓";
+    snapBtn.disabled = true;
+    setTimeout(function () {
+      snapBtn.textContent = "Save snapshot";
+      snapBtn.disabled = false;
+    }, 1400);
+  });
+
+  document.getElementById("btn-cmp-off").addEventListener("click", function () {
+    compareId = null;
+    renderAll();
+  });
+
+  document.getElementById("btn-export").addEventListener("click", function () {
+    var payload = JSON.stringify({ kind: "wheel-of-life", version: 1, current: items, snapshots: snaps }, null, 2);
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+    a.download = "wheel-of-life-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  var fileInput = document.getElementById("file-import");
+  document.getElementById("btn-import").addEventListener("click", function () { fileInput.click(); });
+  fileInput.addEventListener("change", function () {
+    var f = fileInput.files && fileInput.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var data;
+      try { data = JSON.parse(reader.result); } catch (e) { data = null; }
+      if (!data || data.kind !== "wheel-of-life" || !Array.isArray(data.current)) {
+        alert("That does not look like a Wheel of Life backup.");
+        fileInput.value = ""; return;
+      }
+      if (!confirm("Replace the current wheel and all " + snaps.length +
+                   " saved snapshots with this backup?")) { fileInput.value = ""; return; }
+      items = data.current.map(function (d, i) {
+        return {
+          name: String(d.name || "Untitled"),
+          value: clamp(Math.round(+d.value || 0)),
+          note: typeof d.note === "string" ? d.note : "",
+          hue: isFinite(d.hue) ? ((+d.hue % 360) + 360) % 360
+                               : (HUE_START + i * (360 / data.current.length)) % 360
+        };
+      });
+      snaps = Array.isArray(data.snapshots) ? data.snapshots : [];
+      compareId = null; openNotes = {}; activeIndex = -1;
+      save(); saveSnaps(); renderAll();
+      fileInput.value = "";
+    };
+    reader.readAsText(f);
+  });
+
+  document.getElementById("btn-notes").addEventListener("click", function () {
+    var allOpen = items.every(function (_, i) { return openNotes[i]; });
+    openNotes = {};
+    if (!allOpen) items.forEach(function (_, i) { openNotes[i] = true; });
+    drawRows();
+  });
+
+  document.getElementById("btn-reset").addEventListener("click", function () {
+    if (!confirm("Reset to the " + DEFAULTS.length +
+                 " starting areas at 50%? This clears the current scores and notes. Saved snapshots are kept.")) return;
+    items = freshDefaults();
+    openNotes = {};
+    activeIndex = -1;
+    compareId = null;
+    save(); renderAll();
+  });
+
+  document.getElementById("btn-print").addEventListener("click", function () { window.print(); });
+
+  /* every note goes into the PDF at full height, whatever is collapsed on screen */
+  var printCollapsed = [];
+  window.addEventListener("beforeprint", function () {
+    printCollapsed = [];
+    document.querySelectorAll(".row").forEach(function (row, i) {
+      var wrap = row.querySelector(".note-wrap");
+      var ta = row.querySelector(".note-field");
+      if (wrap.hidden) { printCollapsed.push(i); wrap.hidden = false; }
+      autosize(ta);
+    });
+  });
+  window.addEventListener("afterprint", function () {
+    var rows = document.querySelectorAll(".row");
+    printCollapsed.forEach(function (i) {
+      if (rows[i]) rows[i].querySelector(".note-wrap").hidden = true;
+    });
+    printCollapsed = [];
+  });
+
+  document.getElementById("btn-theme").addEventListener("click", function () {
+    var next = mode() === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem(STORE + ":theme", next); } catch (e) {}
+    render();
+  });
+
+  try {
+    var savedTheme = localStorage.getItem(STORE + ":theme");
+    if (savedTheme === "dark" || savedTheme === "light") {
+      document.documentElement.setAttribute("data-theme", savedTheme);
+    }
+  } catch (e) {}
+
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+    if (!document.documentElement.getAttribute("data-theme")) render();
+  });
+
+  document.getElementById("btn-png").addEventListener("click", function () {
+    var prevActive = activeIndex;
+    activeIndex = -1; applyHighlight();
+
+    var t = theme();
+    var clone = svg.cloneNode(true);
+    clone.setAttribute("xmlns", SVGNS);
+    clone.setAttribute("width", VB_W);
+    clone.setAttribute("height", VB_H);
+
+    var bg = el("rect", { x: 0, y: 0, width: VB_W, height: VB_H, fill: t.surface });
+    clone.insertBefore(bg, clone.firstChild);
+
+    var stamp = el("text", {
+      x: CX, y: VB_H - 20, "text-anchor": "middle", "font-size": 11,
+      "font-family": "system-ui, -apple-system, 'Segoe UI', sans-serif", fill: t.muted
+    });
+    stamp.textContent = "Wheel of Life · " + new Date().toLocaleDateString(undefined, {
+      year: "numeric", month: "long", day: "numeric"
+    });
+    clone.appendChild(stamp);
+
+    var svgText = new XMLSerializer().serializeToString(clone);
+    var url = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml;charset=utf-8" }));
+    var img = new Image();
+
+    img.onload = function () {
+      var scale = 2;
+      var canvas = document.createElement("canvas");
+      canvas.width = VB_W * scale; canvas.height = VB_H * scale;
+      var ctx = canvas.getContext("2d");
+      ctx.fillStyle = t.surface;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+
+      canvas.toBlob(function (blob) {
+        var d = new Date();
+        var stampName = d.getFullYear() + "-" +
+          String(d.getMonth() + 1).padStart(2, "0") + "-" +
+          String(d.getDate()).padStart(2, "0");
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "wheel-of-life-" + stampName + ".png";
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      }, "image/png");
+
+      activeIndex = prevActive; applyHighlight();
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      alert("Could not build the PNG. Use Print instead and save as PDF.");
+      activeIndex = prevActive; applyHighlight();
+    };
+    img.src = url;
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
