@@ -120,11 +120,12 @@
     font-size: 11.5px; color: var(--muted); border-radius: 5px;
   }
   .linkbtn:hover { background: var(--hover); color: var(--text-secondary); }
+  .linkbtn[hidden] { display: none; }
 
   .rows { display: flex; flex-direction: column; }
   .row {
     display: grid;
-    grid-template-columns: 15px 9px minmax(0, 1fr) minmax(62px, 96px) 38px 20px 20px;
+    grid-template-columns: 15px 14px minmax(0, 1fr) minmax(62px, 96px) 38px 20px 20px;
     align-items: center;
     gap: 0 7px;
     padding: 2px 4px;
@@ -133,7 +134,16 @@
   .row + .row { border-top: 1px solid var(--gridline); }
   .row.active { background: var(--hover); }
 
-  .dot { width: 9px; height: 9px; border-radius: 50%; }
+  /* the swatch is a native colour input, so it opens the OS colour wheel */
+  .dot {
+    width: 14px; height: 14px; padding: 0; margin: 0;
+    border: none; border-radius: 50%; cursor: pointer;
+    -webkit-appearance: none; appearance: none; background: none;
+  }
+  .dot::-webkit-color-swatch-wrapper { padding: 0; }
+  .dot::-webkit-color-swatch { border: none; border-radius: 50%; }
+  .dot::-moz-color-swatch { border: none; border-radius: 50%; }
+  .dot:hover { box-shadow: 0 0 0 3px var(--hover); }
 
   /* drag handle — invisible until you go looking for it */
   .grip {
@@ -299,7 +309,7 @@
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
   .rows.comparing .row {
-    grid-template-columns: 15px 9px minmax(0, 1fr) minmax(62px, 96px) 38px 46px 20px 20px;
+    grid-template-columns: 15px 14px minmax(0, 1fr) minmax(62px, 96px) 38px 46px 20px 20px;
   }
   .rows.comparing .delta { display: block; }
   .delta.up { color: var(--up); }
@@ -373,7 +383,10 @@
     <section class="panel">
       <div class="panel-head">
         <h2>Areas</h2>
-        <button id="btn-notes" class="linkbtn" type="button">Show all notes</button>
+        <span>
+          <button id="btn-colours" class="linkbtn" type="button" hidden>Reset colours</button>
+          <button id="btn-notes" class="linkbtn" type="button">Show all notes</button>
+        </span>
       </div>
       <div class="cmp-bar" id="cmp-bar">
         <span id="cmp-label"></span>
@@ -448,7 +461,8 @@
         name: n,
         value: 50,
         note: "",
-        hue: (HUE_START + i * (360 / DEFAULTS.length)) % 360
+        hue: (HUE_START + i * (360 / DEFAULTS.length)) % 360,
+        color: ""
       };
     });
   }
@@ -479,7 +493,8 @@
           value: clamp(Math.round(+d.value || 0)),
           note: typeof d.note === "string" ? d.note : "",
           /* older saves predate stored hues — space them out on the way in */
-          hue: isFinite(d.hue) ? ((+d.hue % 360) + 360) % 360 : (HUE_START + i * (360 / n)) % 360
+          hue: isFinite(d.hue) ? ((+d.hue % 360) + 360) % 360 : (HUE_START + i * (360 / n)) % 360,
+          color: normHex(d.color)
         };
       });
     } catch (e) { return null; }
@@ -528,7 +543,8 @@
       id: "s" + new Date().getTime() + Math.random().toString(36).slice(2, 6),
       at: new Date().toISOString(),
       items: items.map(function (d) {
-        return { name: d.name, value: d.value, note: d.note || "", hue: d.hue };
+        return { name: d.name, value: d.value, note: d.note || "", hue: d.hue,
+                 color: d.color || "" };
       }),
       actions: actions.slice()
     });
@@ -672,9 +688,42 @@
     return (i < 16 ? "0" : "") + i.toString(16);
   }
 
+  function normHex(v) {
+    return (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v)) ? v.toLowerCase() : "";
+  }
+
+  function hexToOklch(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    function lin(c) {
+      c = c / 255;
+      return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    }
+    var r = lin((n >> 16) & 255), g = lin((n >> 8) & 255), b = lin(n & 255);
+    var l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+    var m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+    var s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    var L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+    var A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s;
+    var B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+    var h = Math.atan2(B, A) * 180 / Math.PI;
+    return { L: L, C: Math.sqrt(A * A + B * B), h: h < 0 ? h + 360 : h };
+  }
+
+  /* A chosen colour keeps its hue and saturation, but its lightness is pulled
+     into a band that stays visible on the current surface — otherwise a near
+     white slice vanishes in light mode, or a navy one in dark. */
   function colorFor(item) {
     var t = theme();
-    return oklchToHex(t.L, t.C, item.hue);
+    var picked = normHex(item.color);
+    if (!picked) return oklchToHex(t.L, t.C, item.hue);
+    var c = hexToOklch(picked);
+    var dark = mode() === "dark";
+    var lo = dark ? 0.50 : 0.34, hi = dark ? 0.86 : 0.78;
+    return oklchToHex(Math.min(hi, Math.max(lo, c.L)), c.C, c.h);
+  }
+
+  function anyCustomColour() {
+    return items.some(function (d) { return normHex(d.color); });
   }
 
   /* Light unless the reader has explicitly chosen dark — the system setting
@@ -969,9 +1018,18 @@
         moveItem(i, i + dir);
       });
 
-      var dot = document.createElement("span");
+      var dot = document.createElement("input");
+      dot.type = "color";
       dot.className = "dot";
-      dot.style.background = colorFor(item);
+      dot.value = colorFor(item);
+      dot.title = "Colour for " + item.name;
+      dot.setAttribute("aria-label", "Colour for " + item.name);
+      dot.addEventListener("input", function () {
+        items[i].color = normHex(dot.value);
+        save();
+        drawWheel();
+        syncColourReset();
+      });
 
       var name = document.createElement("input");
       name.type = "text";
@@ -1115,12 +1173,17 @@
       removeBtns[i].style.visibility = items.length <= MIN_FIELDS ? "hidden" : "visible";
     }
     syncNotesButton();
+    syncColourReset();
   }
 
   /* a textarea scrolls rather than grows, which would clip notes in a PDF */
   function autosize(ta) {
     ta.style.height = "auto";
     ta.style.height = (ta.scrollHeight + 2) + "px";
+  }
+
+  function syncColourReset() {
+    document.getElementById("btn-colours").hidden = !anyCustomColour();
   }
 
   function syncNotesButton() {
@@ -1213,7 +1276,8 @@
         if (!confirm("Replace the current wheel with the " + fmtDate(s.at) +
                      " snapshot? Your current scores and notes will be overwritten.")) return;
         items = s.items.map(function (d) {
-          return { name: d.name, value: clamp(d.value), note: d.note || "", hue: d.hue };
+          return { name: d.name, value: clamp(d.value), note: d.note || "", hue: d.hue,
+                   color: normHex(d.color) };
         });
         actions = normaliseActions(s.actions);
         compareId = null; openNotes = {}; activeIndex = -1;
@@ -1254,7 +1318,7 @@
 
   document.getElementById("btn-add").addEventListener("click", function () {
     if (items.length >= MAX_FIELDS) return;
-    items.push({ name: "New area", value: 50, note: "", hue: nextHue() });
+    items.push({ name: "New area", value: 50, note: "", hue: nextHue(), color: "" });
     save(); render();
     var rows = document.querySelectorAll(".row");
     var last = rows[rows.length - 1].querySelector(".name");
@@ -1310,6 +1374,7 @@
           name: String(d.name || "Untitled"),
           value: clamp(Math.round(+d.value || 0)),
           note: typeof d.note === "string" ? d.note : "",
+          color: normHex(d.color),
           hue: isFinite(d.hue) ? ((+d.hue % 360) + 360) % 360
                                : (HUE_START + i * (360 / data.current.length)) % 360
         };
@@ -1331,6 +1396,12 @@
     saveActions(); drawPlan();
     var fields = document.querySelectorAll(".action-field");
     fields[fields.length - 1].focus();
+  });
+
+  document.getElementById("btn-colours").addEventListener("click", function () {
+    if (!confirm("Put every area back to its default colour?")) return;
+    items.forEach(function (d) { d.color = ""; });
+    save(); render();
   });
 
   document.getElementById("btn-notes").addEventListener("click", function () {

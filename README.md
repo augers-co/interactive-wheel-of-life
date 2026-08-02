@@ -25,6 +25,9 @@ and can show you exactly what moved since last time.
   the ones that don't apply. The wheel re-divides itself.
 - **Drag to reorder.** List order is wheel order, so you can put related areas
   next to each other. Keyboard works too — focus a drag handle and use ↑/↓.
+- **Recolour any area** by clicking its dot — a native colour picker, no
+  library. Defaults are generated to be distinct from each other, and a chosen
+  colour is held to a lightness band so it stays legible in both themes.
 - **Scored 1–10**, the scale the worksheet uses: 1 is very dissatisfied, 10 is
   fully satisfied. The slider is finer than whole numbers, so 7.4 is available
   if 7 and 8 both feel wrong.
