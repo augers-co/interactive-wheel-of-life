@@ -161,6 +161,8 @@
     width: 11px; height: 11px; fill: none; stroke: currentColor;
     stroke-width: 1.6; stroke-linecap: round;
   }
+  .iconbtn.move { display: none; }   /* beats .iconbtn regardless of order */
+  .move:disabled { opacity: 0.25; }
   .row.dragging { opacity: 0.45; background: var(--hover); cursor: grabbing; }
   .rows.dragging-active .row { transition: none; }
 
@@ -328,6 +330,96 @@
   .footnote { margin-top: 24px; font-size: 12px; color: var(--muted); max-width: 70ch; }
 
   /* Print / save-as-PDF: chrome off, every note expanded, nothing split mid-row */
+
+  /* ---------------------------------------------------------------
+     Small screens. Everything below is additive — the desktop layout
+     above is untouched.
+     --------------------------------------------------------------- */
+  @media (max-width: 640px) {
+    .page { padding: 20px 14px 56px; }
+    h1 { font-size: 23px; }
+
+    /* buttons: even halves rather than a ragged wrap */
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+    .actions button { width: 100%; padding: 12px 10px; font-size: 14px; }
+
+    .card { padding: 10px; }
+
+    /* An area no longer fits on one line: the name gets its own row and the
+       controls sit beneath it, so nothing is truncated to "Recreati...". */
+    .row {
+      grid-template-columns: 38px minmax(0, 1fr) 46px 34px 34px 34px;
+      grid-template-areas:
+        "colour name   name  name name note"
+        "slider slider value up   down remove";
+      gap: 2px 2px;
+      padding: 8px 0 10px;
+      align-items: center;
+    }
+    .rows.comparing .row {
+      grid-template-columns: 38px minmax(0, 1fr) 46px 34px 34px 34px;
+      grid-template-areas:
+        "colour name   name  name  name  note"
+        "slider slider value up    down  remove"
+        "delta  delta  delta delta delta delta";
+    }
+    .rows.comparing .row .delta {
+      grid-area: delta; text-align: left; padding-left: 42px; padding-top: 2px;
+    }
+
+    .row .dot { grid-area: colour; justify-self: center; width: 26px; height: 26px; }
+    .row .name { grid-area: name; font-size: 16px; padding: 6px 4px; }
+    .row input[type="range"] { grid-area: slider; height: 40px; }
+    .row .value { grid-area: value; font-size: 16px; width: 52px; }
+    .row .note-btn { grid-area: note; }
+    .row .remove { grid-area: remove; }
+    .row .note-wrap { grid-column: 1 / -1; }
+
+    /* touch targets: 20px icons are not tappable */
+    .iconbtn { width: 34px; height: 40px; }
+    .note-btn.has-note::after { top: 9px; right: 6px; }
+    .iconbtn svg { width: 14px; height: 14px; }
+    .row .remove, .row .note-btn { justify-self: center; }
+
+    /* a phone cannot drag: explicit up/down buttons replace the grip */
+    .grip { display: none; }
+    .iconbtn.move { display: flex; }
+    .move.up { grid-area: up; }
+    .move.down { grid-area: down; }
+
+    /* fatter slider so it can be dragged with a thumb */
+    .row input[type="range"]::-webkit-slider-runnable-track { height: 5px; }
+    .row input[type="range"]::-moz-range-track { height: 5px; }
+    .row input[type="range"]::-webkit-slider-thumb {
+      width: 22px; height: 22px; margin-top: -8.5px;
+    }
+    .row input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; }
+
+    /* 16px keeps iOS from zooming the page when a field is focused */
+    #who, .note-field, .action-field { font-size: 16px; }
+    #who { max-width: none; padding: 8px 6px; }
+    .note-field { padding: 10px; }
+
+    .plan-row { grid-template-columns: 18px minmax(0, 1fr) 40px; }
+    .action-field { padding: 10px 8px; min-height: 44px; }
+
+    .panel-head { flex-wrap: wrap; }
+    .file-actions { white-space: normal; }
+    .linkbtn { padding: 8px 6px; font-size: 13px; }
+
+    /* snapshot rows stack rather than wrapping mid-sentence */
+    .snap {
+      display: grid; grid-template-columns: 1fr auto;
+      gap: 4px 8px; padding: 10px 2px;
+    }
+    .snap .when { grid-column: 1 / -1; font-size: 15px; }
+    .snap .meta { grid-column: 1 / -1; }
+    .snap .snap-actions { grid-column: 1 / -1; display: flex; gap: 4px; }
+
+    .add-wrap button { padding: 10px 14px; font-size: 14px; }
+    .footnote { font-size: 13px; }
+  }
+
   @media print {
     @page { margin: 12mm 14mm; }
     .actions, .add-wrap, .row .iconbtn, .plan-row .iconbtn, .footnote,
@@ -772,8 +864,28 @@
 
   /* ---------- geometry ---------- */
 
-  var CX = 360, CY = 290, R_OUT = 200, R_IN = 0;
-  var LABEL_R = R_OUT + 15;
+  /* Two geometries. On a phone the SVG scales to roughly 0.4, which shrank the
+     12.5px labels to about 5px on screen. The narrow layout uses a tighter
+     viewBox and proportionally larger type, so labels survive the scaling.
+     Desktop keeps exactly the numbers it always had. */
+  var WHEEL = {
+    wide:   { W: 720, H: 590, CX: 360, CY: 290, R: 200, pad: 15,
+              font: 12.5, lh: 14, wrap: 16, lines: 3 },
+    narrow: { W: 512, H: 468, CX: 256, CY: 234, R: 140, pad: 11,
+              font: 17,   lh: 18, wrap: 11, lines: 3 }
+  };
+  var G = WHEEL.wide;
+  var CX = G.CX, CY = G.CY, R_OUT = G.R, R_IN = 0;
+  var LABEL_R = R_OUT + G.pad;
+
+  var NARROW_Q = window.matchMedia("(max-width: 640px)");
+  function isNarrow() { return NARROW_Q.matches; }
+
+  function useGeometry() {
+    G = (isNarrow() && !pdfMode) ? WHEEL.narrow : WHEEL.wide;
+    CX = G.CX; CY = G.CY; R_OUT = G.R; LABEL_R = G.R + G.pad;
+    svg.setAttribute("viewBox", "0 0 " + G.W + " " + G.H);
+  }
 
   function polar(r, deg) {
     var rad = (deg - 90) * Math.PI / 180;
@@ -822,6 +934,7 @@
   var svg = document.getElementById("wheel");
 
   function drawWheel() {
+    useGeometry();
     var t = theme();
     var n = items.length;
     var step = 360 / n;
@@ -889,8 +1002,8 @@
       var vy = -Math.cos(mid * Math.PI / 180);
 
       var anchor = Math.abs(vx) < 0.1 ? "middle" : (vx > 0 ? "start" : "end");
-      var lines = wrap(items[k].name, 16, 3);
-      var LH = 14;
+      var lines = wrap(items[k].name, G.wrap, G.lines);
+      var LH = G.lh;
       var H = lines.length * LH;
       var y0 = pos[1] + (vy - 1) / 2 * H + 10.5;
 
@@ -898,7 +1011,7 @@
       for (var li = 0; li < lines.length; li++) {
         var tn = el("text", {
           x: n2(pos[0]), y: n2(y0 + li * LH), "text-anchor": anchor,
-          "font-size": 12.5, "font-weight": 500,
+          "font-size": G.font, "font-weight": 500,
           "font-family": "system-ui, -apple-system, 'Segoe UI', sans-serif", fill: t.ink
         });
         tn.textContent = lines[li];
@@ -1101,6 +1214,26 @@
         moveItem(i, i + dir);
       });
 
+      /* Drag-and-drop does not exist on touch, so reordering needs real
+         buttons. CSS hides these above 640px, where the grip handles it. */
+      function moveBtn(dir, label, path) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "iconbtn move " + dir;
+        b.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="' + path + '"/></svg>';
+        b.title = label + " " + item.name;
+        b.setAttribute("aria-label", label + " " + item.name);
+        b.disabled = (dir === "up" && i === 0) ||
+                     (dir === "down" && i === items.length - 1);
+        b.addEventListener("click", function () {
+          moveItem(i, i + (dir === "up" ? -1 : 1));
+        });
+        return b;
+      }
+      /* stemmed arrows, deliberately unlike the note chevron beside them */
+      var upBtn = moveBtn("up", "Move up", "M6 10V2.5M3 5.5 6 2.5l3 3");
+      var downBtn = moveBtn("down", "Move down", "M6 2v7.5M3 6.5 6 9.5l3-3");
+
       var dot = document.createElement("input");
       dot.type = "color";
       dot.className = "dot";
@@ -1233,6 +1366,8 @@
       });
 
       row.appendChild(grip);
+      row.appendChild(upBtn);
+      row.appendChild(downBtn);
       row.appendChild(dot);
       row.appendChild(name);
       row.appendChild(slider);
@@ -1374,10 +1509,14 @@
         saveSnaps(); renderAll();
       }
 
+      var snapActions = document.createElement("span");
+      snapActions.className = "snap-actions";
+      snapActions.appendChild(cmp);
+      snapActions.appendChild(restore);
+      snapActions.appendChild(del);
+
       el2.appendChild(when);
-      el2.appendChild(cmp);
-      el2.appendChild(restore);
-      el2.appendChild(del);
+      el2.appendChild(snapActions);
       list.appendChild(el2);
       /* wired after insertion — confirmButton measures, so it needs layout */
       confirmButton(restore, "Overwrite?", restoreSnap);
@@ -1885,6 +2024,25 @@
     var bytes = new Uint8Array(out.length);
     for (var b = 0; b < out.length; b++) bytes[b] = out.charCodeAt(b) & 0xff;
     return new Blob([bytes], { type: "application/pdf" });
+  }
+
+  /* Redraw when the layout crosses the breakpoint — rotating a phone, or
+     resizing a window. matchMedia alone proved unreliable, so resize is
+     watched too and both are gated on the state actually flipping. */
+  var wasNarrow = isNarrow();
+  function onBreakpoint() {
+    if (isNarrow() === wasNarrow) return;
+    wasNarrow = isNarrow();
+    renderAll();
+  }
+  NARROW_Q.addEventListener("change", onBreakpoint);
+  window.addEventListener("resize", onBreakpoint);
+  window.addEventListener("orientationchange", onBreakpoint);
+  /* Neither of the above fires in every environment. Watching the wheel's own
+     container does, because the box genuinely changes size when the layout
+     switches — this is the one that can be relied on. */
+  if (window.ResizeObserver) {
+    new ResizeObserver(onBreakpoint).observe(svg.parentNode);
   }
 
   renderAll();

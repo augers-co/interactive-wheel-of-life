@@ -63,6 +63,15 @@ git clone https://github.com/augers-co/interactive-wheel-of-life.git
 
 or use **Code → Download ZIP** on GitHub, then open `index.html`.
 
+## On a phone
+
+Below 640px the layout changes: the wheel is redrawn with a tighter frame and
+larger labels so they survive being scaled down, each area's name gets its own
+line instead of being truncated, controls grow to thumb size, and every text
+field is set at 16px so iOS does not zoom the page when you tap one. Because
+drag-and-drop does not exist on touch, each row gains its own up and down
+arrows for reordering. The desktop layout is untouched.
+
 ## Sharing it
 
 Two exports, doing different jobs:
